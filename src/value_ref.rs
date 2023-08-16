@@ -122,7 +122,7 @@ impl<'a> ArrayRef<'a> {
         if index >= self.len() {
             return None;
         }
-        let ptr = self.id.0 as usize + Id::SIZE * (index + 1);
+        let ptr = self.id.0 as usize + 1 + Id::SIZE * (index + 1);
         Some(ValueRef::from(
             self.buffer,
             Id((&self.buffer[ptr..]).get_u32_le()),
@@ -139,7 +139,7 @@ impl<'a> ArrayRef<'a> {
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
         let buffer = self.buffer;
-        let mut buf = &self.buffer[self.id.0 as usize + Id::SIZE..];
+        let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
         (0..self.len()).map(move |_| ValueRef::from(buffer, Id(buf.get_u32_le())))
     }
 }
@@ -175,7 +175,7 @@ impl<'a> ObjectRef<'a> {
 
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> + 'a {
         let buffer = self.buffer;
-        let mut buf = &self.buffer[self.id.0 as usize + Id::SIZE..];
+        let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
         (0..self.len()).map(move |_| {
             let kid = Id(buf.get_u32_le());
             let vid = Id(buf.get_u32_le());
