@@ -58,11 +58,11 @@ impl Builder {
 
     /// Adds a string value to the builder and returns its ID.
     pub fn add_string(&mut self, v: &str) -> Id {
-        if let Some(id) = self.string_ids.get(v) {
-            return *id;
-        }
+        // if let Some(id) = self.string_ids.get(v) {
+        //     return *id;
+        // }
         let id = self.next_id();
-        self.string_ids.insert(v.into(), id);
+        // self.string_ids.insert(v.into(), id);
         self.buffer.push(TAG_STRING);
         self.buffer.put_u32_le(v.len() as u32);
         self.buffer.put_slice(v.as_bytes());

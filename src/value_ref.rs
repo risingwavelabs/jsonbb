@@ -97,6 +97,19 @@ impl<'a> ValueRef<'a> {
             }
         }
     }
+
+    /// Returns the capacity to store this value, in bytes.
+    pub(crate) fn capacity(&self) -> usize {
+        match self {
+            Self::Null => 0,
+            Self::Bool(_) => 0,
+            Self::I64(_) => 1 + 8,
+            Self::F64(_) => 1 + 8,
+            Self::String(s) => s.len() + 4 + 1,
+            Self::Array(a) => a.buffer.len(),
+            Self::Object(o) => o.buffer.len(),
+        }
+    }
 }
 
 impl fmt::Debug for ValueRef<'_> {

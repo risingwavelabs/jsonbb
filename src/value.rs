@@ -176,7 +176,7 @@ impl From<&str> for Value {
 
 impl From<ValueRef<'_>> for Value {
     fn from(v: ValueRef<'_>) -> Self {
-        let mut builder = Builder::default();
+        let mut builder = Builder::with_capacity(v.capacity());
         let id = builder.add_value_ref(v);
         Value {
             buffer: builder.into_buffer().into(),
