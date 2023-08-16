@@ -14,6 +14,40 @@ impl Value {
         }
     }
 
+    pub fn as_null(&self) -> Option<()> {
+        match self.id {
+            Id::NULL => Some(()),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        self.as_ref().as_bool()
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        self.as_ref().as_i64()
+    }
+
+    pub fn as_f64(&self) -> Option<f64> {
+        self.as_ref().as_f64()
+    }
+
+    /// If the value is a string, returns the associated str. Returns `None` otherwise.
+    pub fn as_str(&self) -> Option<&str> {
+        self.as_ref().as_str()
+    }
+
+    /// If the value is an array, returns the associated array. Returns `None` otherwise.
+    pub fn as_array(&self) -> Option<ArrayRef<'_>> {
+        self.as_ref().as_array()
+    }
+
+    /// If the value is an object, returns the associated map. Returns `None` otherwise.
+    pub fn as_object(&self) -> Option<ObjectRef<'_>> {
+        self.as_ref().as_object()
+    }
+
     pub fn dump(&self) -> String {
         dump(&self.buffer)
     }

@@ -63,12 +63,12 @@ impl<'a> ValueRef<'a> {
     }
 
     /// If the value is an object, returns the associated map. Returns `None` otherwise.
-    pub fn as_object(&self) -> Option<MapRef<'a>> {
+    pub fn as_object(&self) -> Option<ObjectRef<'a>> {
         let mut buf = &self.buffer[self.id.as_ptr()?..];
         if buf.get_u8() != TAG_OBJECT {
             return None;
         }
-        Some(MapRef {
+        Some(ObjectRef {
             buffer: self.buffer,
             id: self.id,
             len: buf.get_u32_le(),
@@ -76,37 +76,44 @@ impl<'a> ValueRef<'a> {
     }
 }
 
-enum ValueRepr<'a> {
+impl fmt::Debug for ValueRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        ValueEnum::from(*self).fmt(f)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum ValueEnum<'a> {
     Null,
     Bool(bool),
     I64(i64),
     F64(f64),
     String(&'a str),
     Array(ArrayRef<'a>),
-    Object(MapRef<'a>),
+    Object(ObjectRef<'a>),
 }
 
-impl<'a> From<ValueRef<'a>> for ValueRepr<'a> {
+impl<'a> From<ValueRef<'a>> for ValueEnum<'a> {
     fn from(value: ValueRef<'a>) -> Self {
         match value.id {
-            Id::NULL => ValueRepr::Null,
-            Id::TRUE => ValueRepr::Bool(true),
-            Id::FALSE => ValueRepr::Bool(false),
+            Id::NULL => ValueEnum::Null,
+            Id::TRUE => ValueEnum::Bool(true),
+            Id::FALSE => ValueEnum::Bool(false),
             _ => {
                 let mut buf = &value.buffer[value.id.0 as usize..];
                 match buf.get_u8() {
-                    TAG_I64 => ValueRepr::I64(buf.get_i64_le()),
-                    TAG_F64 => ValueRepr::F64(buf.get_f64_le()),
-                    TAG_STRING => ValueRepr::String({
+                    TAG_I64 => ValueEnum::I64(buf.get_i64_le()),
+                    TAG_F64 => ValueEnum::F64(buf.get_f64_le()),
+                    TAG_STRING => ValueEnum::String({
                         let len = buf.get_u32_le() as usize;
                         unsafe { std::str::from_utf8_unchecked(&buf[..len]) }
                     }),
-                    TAG_ARRAY => ValueRepr::Array(ArrayRef {
+                    TAG_ARRAY => ValueEnum::Array(ArrayRef {
                         buffer: value.buffer,
                         id: value.id,
                         len: buf.get_u32_le(),
                     }),
-                    TAG_OBJECT => ValueRepr::Object(MapRef {
+                    TAG_OBJECT => ValueEnum::Object(ObjectRef {
                         buffer: value.buffer,
                         id: value.id,
                         len: buf.get_u32_le(),
@@ -118,16 +125,16 @@ impl<'a> From<ValueRef<'a>> for ValueRepr<'a> {
     }
 }
 
-impl fmt::Debug for ValueRef<'_> {
+impl fmt::Debug for ValueEnum<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match ValueRepr::from(*self) {
-            ValueRepr::Null => "null".fmt(f),
-            ValueRepr::Bool(b) => b.fmt(f),
-            ValueRepr::I64(i) => i.fmt(f),
-            ValueRepr::F64(v) => v.fmt(f),
-            ValueRepr::String(s) => s.fmt(f),
-            ValueRepr::Array(a) => a.fmt(f),
-            ValueRepr::Object(o) => o.fmt(f),
+        match self {
+            Self::Null => "null".fmt(f),
+            Self::Bool(b) => b.fmt(f),
+            Self::I64(i) => i.fmt(f),
+            Self::F64(v) => v.fmt(f),
+            Self::String(s) => s.fmt(f),
+            Self::Array(a) => a.fmt(f),
+            Self::Object(o) => o.fmt(f),
         }
     }
 }
@@ -177,14 +184,14 @@ impl fmt::Debug for ArrayRef<'_> {
 }
 
 #[derive(Clone, Copy)]
-pub struct MapRef<'a> {
+pub struct ObjectRef<'a> {
     buffer: &'a [u8],
     // assume tag == TAG_OBJECT
     id: Id,
     len: u32,
 }
 
-impl<'a> MapRef<'a> {
+impl<'a> ObjectRef<'a> {
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
         // TODO: binary search
         // linear search
@@ -220,7 +227,7 @@ impl<'a> MapRef<'a> {
     }
 }
 
-impl fmt::Debug for MapRef<'_> {
+impl fmt::Debug for ObjectRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
