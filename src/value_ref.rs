@@ -12,56 +12,60 @@ pub enum ValueRef<'a> {
 }
 
 impl<'a> ValueRef<'a> {
-    pub fn as_null(&self) -> Option<()> {
+    pub fn as_null(self) -> Option<()> {
         match self {
             Self::Null => Some(()),
             _ => None,
         }
     }
 
-    pub fn as_bool(&self) -> Option<bool> {
+    pub fn as_bool(self) -> Option<bool> {
         match self {
-            Self::Bool(b) => Some(*b),
+            Self::Bool(b) => Some(b),
             _ => None,
         }
     }
 
-    pub fn as_i64(&self) -> Option<i64> {
+    pub fn as_i64(self) -> Option<i64> {
         match self {
-            Self::I64(i) => Some(*i),
+            Self::I64(i) => Some(i),
             _ => None,
         }
     }
 
-    pub fn as_f64(&self) -> Option<f64> {
+    pub fn as_f64(self) -> Option<f64> {
         match self {
-            Self::F64(f) => Some(*f),
+            Self::F64(f) => Some(f),
             _ => None,
         }
     }
 
     /// If the value is a string, returns the associated str. Returns `None` otherwise.
-    pub fn as_str(&self) -> Option<&'a str> {
+    pub fn as_str(self) -> Option<&'a str> {
         match self {
-            Self::String(s) => Some(*s),
+            Self::String(s) => Some(s),
             _ => None,
         }
     }
 
     /// If the value is an array, returns the associated array. Returns `None` otherwise.
-    pub fn as_array(&self) -> Option<ArrayRef<'a>> {
+    pub fn as_array(self) -> Option<ArrayRef<'a>> {
         match self {
-            Self::Array(a) => Some(*a),
+            Self::Array(a) => Some(a),
             _ => None,
         }
     }
 
     /// If the value is an object, returns the associated map. Returns `None` otherwise.
-    pub fn as_object(&self) -> Option<ObjectRef<'a>> {
+    pub fn as_object(self) -> Option<ObjectRef<'a>> {
         match self {
-            Self::Object(o) => Some(*o),
+            Self::Object(o) => Some(o),
             _ => None,
         }
+    }
+
+    pub fn to_owned(self) -> Value {
+        self.into()
     }
 
     pub(crate) fn from(buffer: &'a [u8], id: Id) -> Self {

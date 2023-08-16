@@ -13,6 +13,14 @@ impl Builder {
         Self::default()
     }
 
+    /// Creates a new [`Builder`] with the given capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            buffer: Vec::with_capacity(capacity),
+            string_ids: HashMap::new(),
+        }
+    }
+
     /// Returns the ID that will be assigned to the next value.
     fn next_id(&self) -> Id {
         Id(self.buffer.len() as u32)
@@ -35,7 +43,7 @@ impl Builder {
     /// Adds an i64 value to the builder and returns its ID.
     pub fn add_i64(&mut self, v: i64) -> Id {
         let id = self.next_id();
-        self.buffer.put_u8(TAG_I64);
+        self.buffer.push(TAG_I64);
         self.buffer.put_i64_le(v);
         id
     }
@@ -43,7 +51,7 @@ impl Builder {
     /// Adds an f64 value to the builder and returns its ID.
     pub fn add_f64(&mut self, v: f64) -> Id {
         let id = self.next_id();
-        self.buffer.put_u8(TAG_F64);
+        self.buffer.push(TAG_F64);
         self.buffer.put_f64_le(v);
         id
     }
@@ -55,7 +63,7 @@ impl Builder {
         }
         let id = self.next_id();
         self.string_ids.insert(v.into(), id);
-        self.buffer.put_u8(TAG_STRING);
+        self.buffer.push(TAG_STRING);
         self.buffer.put_u32_le(v.len() as u32);
         self.buffer.put_slice(v.as_bytes());
         id
@@ -65,7 +73,7 @@ impl Builder {
     pub fn add_array(&mut self, values: &[Id]) -> Id {
         let id = self.next_id();
         self.buffer.reserve(1 + Id::SIZE * (1 + values.len()));
-        self.buffer.put_u8(TAG_ARRAY);
+        self.buffer.push(TAG_ARRAY);
         self.buffer.put_u32_le(values.len() as u32);
         for value in values {
             self.buffer.put_u32_le(value.0);
@@ -87,13 +95,35 @@ impl Builder {
         // add object
         let id = self.next_id();
         self.buffer.reserve(1 + Id::SIZE * (1 + ids.len() * 2));
-        self.buffer.put_u8(TAG_OBJECT);
+        self.buffer.push(TAG_OBJECT);
         self.buffer.put_u32_le(ids.len() as u32);
         for (k, v) in ids {
             self.buffer.put_u32_le(k.0);
             self.buffer.put_u32_le(v.0);
         }
         id
+    }
+
+    /// Adds a value to the builder and returns its ID.
+    pub fn add_value_ref(&mut self, value: ValueRef<'_>) -> Id {
+        match value {
+            ValueRef::Null => self.add_null(),
+            ValueRef::Bool(b) => self.add_bool(b),
+            ValueRef::I64(i) => self.add_i64(i),
+            ValueRef::F64(f) => self.add_f64(f),
+            ValueRef::String(s) => self.add_string(s),
+            ValueRef::Array(a) => {
+                let ids = a.iter().map(|v| self.add_value_ref(v)).collect::<Vec<_>>();
+                self.add_array(&ids)
+            }
+            ValueRef::Object(o) => {
+                let kvs = o
+                    .iter()
+                    .map(|(k, v)| (k, self.add_value_ref(v)))
+                    .collect::<Vec<_>>();
+                self.add_object(kvs.into_iter())
+            }
+        }
     }
 
     pub(crate) fn into_buffer(self) -> Vec<u8> {

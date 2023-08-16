@@ -119,6 +119,72 @@ impl FromStr for Value {
     }
 }
 
+impl From<()> for Value {
+    fn from(_: ()) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_null();
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_bool(b);
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
+impl From<i64> for Value {
+    fn from(v: i64) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_i64(v);
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
+impl From<f64> for Value {
+    fn from(v: f64) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_f64(v);
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_string(s);
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
+impl From<ValueRef<'_>> for Value {
+    fn from(v: ValueRef<'_>) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_value_ref(v);
+        Value {
+            buffer: builder.into_buffer().into(),
+            id,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
