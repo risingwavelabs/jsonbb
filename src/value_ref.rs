@@ -1,89 +1,7 @@
 use super::*;
 
 #[derive(Clone, Copy)]
-pub struct ValueRef<'a> {
-    pub(crate) buffer: &'a [u8],
-    pub(crate) id: Id,
-}
-
-impl<'a> ValueRef<'a> {
-    pub fn as_null(&self) -> Option<()> {
-        match self.id {
-            Id::NULL => Some(()),
-            _ => None,
-        }
-    }
-
-    pub fn as_bool(&self) -> Option<bool> {
-        match self.id {
-            Id::TRUE => Some(true),
-            Id::FALSE => Some(false),
-            _ => None,
-        }
-    }
-
-    pub fn as_i64(&self) -> Option<i64> {
-        let mut buf = &self.buffer[self.id.as_ptr()?..];
-        if buf.get_u8() != TAG_I64 {
-            return None;
-        }
-        Some(buf.get_i64_le())
-    }
-
-    pub fn as_f64(&self) -> Option<f64> {
-        let mut buf = &self.buffer[self.id.as_ptr()?..];
-        if buf.get_u8() != TAG_F64 {
-            return None;
-        }
-        Some(buf.get_f64_le())
-    }
-
-    /// If the value is a string, returns the associated str. Returns `None` otherwise.
-    pub fn as_str(&self) -> Option<&'a str> {
-        let mut buf = &self.buffer[self.id.as_ptr()?..];
-        if buf.get_u8() != TAG_STRING {
-            return None;
-        }
-        let len = buf.get_u32_le() as usize;
-        let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-        Some(s)
-    }
-
-    /// If the value is an array, returns the associated array. Returns `None` otherwise.
-    pub fn as_array(&self) -> Option<ArrayRef<'a>> {
-        let mut buf = &self.buffer[self.id.as_ptr()?..];
-        if buf.get_u8() != TAG_ARRAY {
-            return None;
-        }
-        Some(ArrayRef {
-            buffer: self.buffer,
-            id: self.id,
-            len: buf.get_u32_le(),
-        })
-    }
-
-    /// If the value is an object, returns the associated map. Returns `None` otherwise.
-    pub fn as_object(&self) -> Option<ObjectRef<'a>> {
-        let mut buf = &self.buffer[self.id.as_ptr()?..];
-        if buf.get_u8() != TAG_OBJECT {
-            return None;
-        }
-        Some(ObjectRef {
-            buffer: self.buffer,
-            id: self.id,
-            len: buf.get_u32_le(),
-        })
-    }
-}
-
-impl fmt::Debug for ValueRef<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        ValueEnum::from(*self).fmt(f)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub enum ValueEnum<'a> {
+pub enum ValueRef<'a> {
     Null,
     Bool(bool),
     I64(i64),
@@ -93,29 +11,81 @@ pub enum ValueEnum<'a> {
     Object(ObjectRef<'a>),
 }
 
-impl<'a> From<ValueRef<'a>> for ValueEnum<'a> {
-    fn from(value: ValueRef<'a>) -> Self {
-        match value.id {
-            Id::NULL => ValueEnum::Null,
-            Id::TRUE => ValueEnum::Bool(true),
-            Id::FALSE => ValueEnum::Bool(false),
+impl<'a> ValueRef<'a> {
+    pub fn as_null(&self) -> Option<()> {
+        match self {
+            Self::Null => Some(()),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Self::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            Self::I64(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            Self::F64(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    /// If the value is a string, returns the associated str. Returns `None` otherwise.
+    pub fn as_str(&self) -> Option<&'a str> {
+        match self {
+            Self::String(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    /// If the value is an array, returns the associated array. Returns `None` otherwise.
+    pub fn as_array(&self) -> Option<ArrayRef<'a>> {
+        match self {
+            Self::Array(a) => Some(*a),
+            _ => None,
+        }
+    }
+
+    /// If the value is an object, returns the associated map. Returns `None` otherwise.
+    pub fn as_object(&self) -> Option<ObjectRef<'a>> {
+        match self {
+            Self::Object(o) => Some(*o),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn from(buffer: &'a [u8], id: Id) -> Self {
+        match id {
+            Id::NULL => Self::Null,
+            Id::TRUE => Self::Bool(true),
+            Id::FALSE => Self::Bool(false),
             _ => {
-                let mut buf = &value.buffer[value.id.0 as usize..];
+                let mut buf = &buffer[id.0 as usize..];
                 match buf.get_u8() {
-                    TAG_I64 => ValueEnum::I64(buf.get_i64_le()),
-                    TAG_F64 => ValueEnum::F64(buf.get_f64_le()),
-                    TAG_STRING => ValueEnum::String({
+                    TAG_I64 => Self::I64(buf.get_i64_le()),
+                    TAG_F64 => Self::F64(buf.get_f64_le()),
+                    TAG_STRING => Self::String({
                         let len = buf.get_u32_le() as usize;
                         unsafe { std::str::from_utf8_unchecked(&buf[..len]) }
                     }),
-                    TAG_ARRAY => ValueEnum::Array(ArrayRef {
-                        buffer: value.buffer,
-                        id: value.id,
+                    TAG_ARRAY => Self::Array(ArrayRef {
+                        buffer,
+                        id,
                         len: buf.get_u32_le(),
                     }),
-                    TAG_OBJECT => ValueEnum::Object(ObjectRef {
-                        buffer: value.buffer,
-                        id: value.id,
+                    TAG_OBJECT => Self::Object(ObjectRef {
+                        buffer,
+                        id,
                         len: buf.get_u32_le(),
                     }),
                     t => panic!("invalid tag: {t}"),
@@ -125,7 +95,7 @@ impl<'a> From<ValueRef<'a>> for ValueEnum<'a> {
     }
 }
 
-impl fmt::Debug for ValueEnum<'_> {
+impl fmt::Debug for ValueRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Null => "null".fmt(f),
@@ -153,10 +123,10 @@ impl<'a> ArrayRef<'a> {
             return None;
         }
         let ptr = self.id.0 as usize + Id::SIZE * (index + 1);
-        Some(ValueRef {
-            buffer: self.buffer,
-            id: Id((&self.buffer[ptr..]).get_u32_le()),
-        })
+        Some(ValueRef::from(
+            self.buffer,
+            Id((&self.buffer[ptr..]).get_u32_le()),
+        ))
     }
 
     pub fn len(&self) -> usize {
@@ -170,10 +140,7 @@ impl<'a> ArrayRef<'a> {
     pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
         let buffer = self.buffer;
         let mut buf = &self.buffer[self.id.0 as usize + Id::SIZE..];
-        (0..self.len()).map(move |_| ValueRef {
-            buffer,
-            id: Id(buf.get_u32_le()),
-        })
+        (0..self.len()).map(move |_| ValueRef::from(buffer, Id(buf.get_u32_le())))
     }
 }
 
@@ -212,8 +179,8 @@ impl<'a> ObjectRef<'a> {
         (0..self.len()).map(move |_| {
             let kid = Id(buf.get_u32_le());
             let vid = Id(buf.get_u32_le());
-            let k = ValueRef { buffer, id: kid }.as_str().unwrap();
-            let v = ValueRef { buffer, id: vid };
+            let k = ValueRef::from(buffer, kid).as_str().unwrap();
+            let v = ValueRef::from(buffer, vid);
             (k, v)
         })
     }

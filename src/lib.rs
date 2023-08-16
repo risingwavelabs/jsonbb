@@ -20,14 +20,6 @@ impl Id {
     const FALSE: Self = Id(0x8000_0001);
     const TRUE: Self = Id(0x8000_0002);
     const SIZE: usize = std::mem::size_of::<Self>();
-
-    const fn as_ptr(self) -> Option<usize> {
-        if self.0 & 0x8000_0000 == 0 {
-            Some(self.0 as usize)
-        } else {
-            None
-        }
-    }
 }
 
 impl fmt::Debug for Id {

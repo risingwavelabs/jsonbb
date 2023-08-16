@@ -8,17 +8,11 @@ pub struct Value {
 
 impl Value {
     fn as_ref(&self) -> ValueRef<'_> {
-        ValueRef {
-            buffer: &self.buffer,
-            id: self.id,
-        }
+        ValueRef::from(&self.buffer, self.id)
     }
 
     pub fn as_null(&self) -> Option<()> {
-        match self.id {
-            Id::NULL => Some(()),
-            _ => None,
-        }
+        self.as_ref().as_null()
     }
 
     pub fn as_bool(&self) -> Option<bool> {
