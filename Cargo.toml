@@ -11,6 +11,7 @@ serde_json = "1"
 
 [dev-dependencies]
 criterion = "0.5"
+jsonb = "0.2"
 
 [[bench]]
 name = "bench"
