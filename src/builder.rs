@@ -126,7 +126,21 @@ impl Builder {
         }
     }
 
-    pub(crate) fn into_buffer(self) -> Vec<u8> {
-        self.buffer
+    /// Finishes building and returns the [`Value`].
+    pub fn finish(self, id: Id) -> Value {
+        Value {
+            buffer: self.buffer.into(),
+            id,
+        }
+    }
+
+    /// Finishes building and returns the [`Array`].
+    pub fn finish_array(mut self, ids: &[Id]) -> Array {
+        let id = self.add_array(ids);
+        Array {
+            buffer: self.buffer.into(),
+            id,
+            len: ids.len() as u32,
+        }
     }
 }
