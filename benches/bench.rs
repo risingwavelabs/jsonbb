@@ -3,7 +3,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 fn bench_parse(c: &mut Criterion) {
     let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
     c.bench_function("parse/this", |b| {
-        b.iter(|| json.parse::<json_array::Value>().unwrap())
+        b.iter(|| json.parse::<flat_json::Value>().unwrap())
     });
     c.bench_function("parse/serde_json", |b| {
         b.iter(|| json.parse::<serde_json::Value>().unwrap())
@@ -14,7 +14,7 @@ fn bench_parse(c: &mut Criterion) {
 
     println!(
         "capacity/this: {}",
-        json.parse::<json_array::Value>().unwrap().capacity()
+        json.parse::<flat_json::Value>().unwrap().capacity()
     );
     println!(
         "capacity/jsonb: {}",
@@ -24,9 +24,7 @@ fn bench_parse(c: &mut Criterion) {
 
 fn bench_from(c: &mut Criterion) {
     let s = "1234567890";
-    c.bench_function("from_string/this", |b| {
-        b.iter(|| json_array::Value::from(s))
-    });
+    c.bench_function("from_string/this", |b| b.iter(|| flat_json::Value::from(s)));
     c.bench_function("from_string/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
     });
@@ -34,7 +32,7 @@ fn bench_from(c: &mut Criterion) {
 
 fn bench_index(c: &mut Criterion) {
     let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
-    let v: json_array::Value = json.parse().unwrap();
+    let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json[0]/this", |b| {
         b.iter(|| v.as_array().unwrap().get(2).unwrap().to_owned())
     });
@@ -48,7 +46,7 @@ fn bench_index(c: &mut Criterion) {
     });
 
     let json = r#"{"a": {"b":"foo"}}"#;
-    let v: json_array::Value = json.parse().unwrap();
+    let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/this", |b| {
         b.iter(|| v.as_object().unwrap().get("a").unwrap().to_owned())
     });
@@ -75,8 +73,8 @@ fn bench_index_array(c: &mut Criterion) {
     let n = 1024;
 
     let array = {
-        let v: json_array::Value = json.parse().unwrap();
-        let mut builder = json_array::Builder::default();
+        let v: flat_json::Value = json.parse().unwrap();
+        let mut builder = flat_json::Builder::default();
         let ids = (0..n)
             .map(|_| builder.add_value_ref(v.as_ref()))
             .collect::<Vec<_>>();
@@ -84,7 +82,7 @@ fn bench_index_array(c: &mut Criterion) {
     };
     c.bench_function("[json['key'] for json in array]/this", |b| {
         b.iter(|| {
-            let mut builder = json_array::Builder::default();
+            let mut builder = flat_json::Builder::default();
             let mut ids = Vec::with_capacity(array.len());
             for value in array.iter() {
                 let new_value = value.as_object().unwrap().get("name").unwrap();
@@ -129,7 +127,7 @@ fn bench_index_array(c: &mut Criterion) {
 
 fn bench_path(c: &mut Criterion) {
     let json = r#"{"a": {"b": ["foo","bar"]}}"#;
-    let v: json_array::Value = json.parse().unwrap();
+    let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json[path]/this", |b| {
         b.iter(|| {
             v.as_object()
