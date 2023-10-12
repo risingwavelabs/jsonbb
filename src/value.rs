@@ -1,4 +1,5 @@
 use super::*;
+use serde::de::DeserializeSeed;
 use std::{fmt, str::FromStr};
 
 /// An owned JSON value.
@@ -117,9 +118,10 @@ impl FromStr for Value {
     type Err = serde_json::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // TODO: directly parse into the builder
-        let serde_value = serde_json::Value::from_str(s)?;
-        Ok(serde_value.into())
+        let mut builder = Builder::new();
+        let mut deserializer = serde_json::Deserializer::from_str(s);
+        let id = builder.deserialize(&mut deserializer)?;
+        Ok(builder.finish(id))
     }
 }
 
@@ -209,18 +211,19 @@ mod tests {
         assert_eq!(
             value.dump().trim(),
             r#"
-#0: "hello"
-#10: "world"
-#20: [#0, #10]
-#33: 178.5
-#42: 43
-#51: "array"
-#61: "bool"
-#70: "float"
-#80: "integer"
-#92: "null"
-#101: "string"
-#112: {#51:#20, #61:true, #70:#33, #80:#42, #92:null, #101:#0}
+#0: "null"
+#9: "bool"
+#18: "string"
+#29: "hello"
+#39: "integer"
+#51: 43
+#60: "float"
+#70: 178.5
+#79: "array"
+#89: "hello"
+#99: "world"
+#109: [#89, #99]
+#122: {#0:null, #9:true, #18:#29, #39:#51, #60:#70, #79:#109}
 "#
             .trim()
         );

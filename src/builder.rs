@@ -5,7 +5,7 @@ use bytes::BufMut;
 #[derive(Default)]
 pub struct Builder {
     buffer: Vec<u8>,
-    string_ids: HashMap<String, Id>,
+    // string_ids: HashMap<String, Id>,
 }
 
 impl Builder {
@@ -18,7 +18,7 @@ impl Builder {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
-            string_ids: HashMap::new(),
+            // string_ids: HashMap::new(),
         }
     }
 
@@ -93,12 +93,17 @@ impl Builder {
             let kid = self.add_string(k);
             ids.push((kid, v));
         }
+        self.add_object_ids(&ids)
+    }
+
+    /// Adds an object value to the builder and returns its ID.
+    pub(crate) fn add_object_ids<'b>(&mut self, kvs: &[(Id, Id)]) -> Id {
         // add object
         let id = self.next_id();
-        self.buffer.reserve(1 + Id::SIZE * (1 + ids.len() * 2));
+        self.buffer.reserve(1 + Id::SIZE * (1 + kvs.len() * 2));
         self.buffer.push(TAG_OBJECT);
-        self.buffer.put_u32_le(ids.len() as u32);
-        for (k, v) in ids {
+        self.buffer.put_u32_le(kvs.len() as u32);
+        for (k, v) in kvs {
             self.buffer.put_u32_le(k.0);
             self.buffer.put_u32_le(v.0);
         }

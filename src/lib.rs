@@ -1,11 +1,11 @@
 //! A JSONB-like binary format for storing JSON values.
 
 use bytes::Buf;
-use std::collections::HashMap;
 use std::fmt;
 
 mod array;
 mod builder;
+mod de;
 mod value;
 mod value_ref;
 

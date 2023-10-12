@@ -128,7 +128,7 @@ impl<'a> ValueRef<'a> {
 impl fmt::Debug for ValueRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Null => "null".fmt(f),
+            Self::Null => f.write_str("null"),
             Self::Bool(b) => b.fmt(f),
             Self::I64(i) => i.fmt(f),
             Self::F64(v) => v.fmt(f),
