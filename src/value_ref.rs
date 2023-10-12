@@ -1,17 +1,26 @@
 use super::*;
 
+/// A reference to a JSON value.
 #[derive(Clone, Copy)]
 pub enum ValueRef<'a> {
+    /// Represents a JSON null value.
     Null,
+    /// Represents a JSON boolean.
     Bool(bool),
+    /// Represents a JSON integer.
     I64(i64),
+    /// Represents a JSON float.
     F64(f64),
+    /// Represents a JSON string.
     String(&'a str),
+    /// Represents a JSON array.
     Array(ArrayRef<'a>),
+    /// Represents a JSON object.
     Object(ObjectRef<'a>),
 }
 
 impl<'a> ValueRef<'a> {
+    /// If the value is `null`, returns `()`. Returns `None` otherwise.
     pub fn as_null(self) -> Option<()> {
         match self {
             Self::Null => Some(()),
@@ -19,6 +28,7 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// If the value is a boolean, returns the associated bool. Returns `None` otherwise.
     pub fn as_bool(self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(b),
@@ -26,6 +36,7 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// If the value is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(self) -> Option<i64> {
         match self {
             Self::I64(i) => Some(i),
@@ -33,6 +44,7 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// If the value is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(self) -> Option<f64> {
         match self {
             Self::F64(f) => Some(f),
@@ -64,6 +76,7 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// Creates owned `Value` from `ValueRef`.
     pub fn to_owned(self) -> Value {
         self.into()
     }
@@ -126,6 +139,7 @@ impl fmt::Debug for ValueRef<'_> {
     }
 }
 
+/// A reference to a JSON array.
 #[derive(Clone, Copy)]
 pub struct ArrayRef<'a> {
     pub(crate) buffer: &'a [u8],
@@ -135,6 +149,7 @@ pub struct ArrayRef<'a> {
 }
 
 impl<'a> ArrayRef<'a> {
+    /// Returns the element at the given index, or `None` if the index is out of bounds.
     pub fn get(&self, index: usize) -> Option<ValueRef<'a>> {
         if index >= self.len() {
             return None;
@@ -146,14 +161,17 @@ impl<'a> ArrayRef<'a> {
         ))
     }
 
+    /// Returns the number of elements in the array.
     pub fn len(&self) -> usize {
         self.len as usize
     }
 
+    /// Returns `true` if the array contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Returns an iterator over the array's elements.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
         let buffer = self.buffer;
         let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
@@ -167,6 +185,7 @@ impl fmt::Debug for ArrayRef<'_> {
     }
 }
 
+/// A reference to a JSON object.
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
     buffer: &'a [u8],
@@ -176,20 +195,24 @@ pub struct ObjectRef<'a> {
 }
 
 impl<'a> ObjectRef<'a> {
+    /// Returns the value associated with the given key, or `None` if the key is not present.
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
         // TODO: binary search
         // linear search
         self.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
     }
 
+    /// Returns the number of elements in the object.
     pub fn len(&self) -> usize {
         self.len as usize
     }
 
+    /// Returns `true` if the object contains no elements.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Returns an iterator over the object's key-value pairs.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> + 'a {
         let buffer = self.buffer;
         let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
@@ -202,10 +225,12 @@ impl<'a> ObjectRef<'a> {
         })
     }
 
+    /// Returns an iterator over the object's keys.
     pub fn keys(&self) -> impl ExactSizeIterator<Item = &'a str> + 'a {
         self.iter().map(|(k, _)| k)
     }
 
+    /// Returns an iterator over the object's values.
     pub fn values(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
         self.iter().map(|(_, v)| v)
     }

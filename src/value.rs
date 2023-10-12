@@ -1,28 +1,34 @@
 use super::*;
 use std::{fmt, str::FromStr};
 
+/// An owned JSON value.
 pub struct Value {
     pub(crate) buffer: Box<[u8]>,
     pub(crate) id: Id,
 }
 
 impl Value {
+    /// Returns the value as a reference.
     pub fn as_ref(&self) -> ValueRef<'_> {
         ValueRef::from(&self.buffer, self.id)
     }
 
+    /// If the value is `null`, returns `()`. Returns `None` otherwise.
     pub fn as_null(&self) -> Option<()> {
         self.as_ref().as_null()
     }
 
+    /// If the value is a boolean, returns the associated bool. Returns `None` otherwise.
     pub fn as_bool(&self) -> Option<bool> {
         self.as_ref().as_bool()
     }
 
+    /// If the value is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(&self) -> Option<i64> {
         self.as_ref().as_i64()
     }
 
+    /// If the value is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(&self) -> Option<f64> {
         self.as_ref().as_f64()
     }
@@ -42,6 +48,7 @@ impl Value {
         self.as_ref().as_object()
     }
 
+    /// Dumps the internal buffer as a string.
     pub fn dump(&self) -> String {
         dump(&self.buffer)
     }

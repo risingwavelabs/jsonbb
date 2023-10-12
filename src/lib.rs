@@ -1,3 +1,5 @@
+//! A JSONB-like binary format for storing JSON values.
+
 use bytes::Buf;
 use std::collections::HashMap;
 use std::fmt;
@@ -12,13 +14,17 @@ pub use self::builder::*;
 pub use self::value::*;
 pub use self::value_ref::*;
 
+/// A key to identify JSON values within a buffer.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(u32);
 
 impl Id {
+    // special values
     const NULL: Self = Id(0x8000_0000);
     const FALSE: Self = Id(0x8000_0001);
     const TRUE: Self = Id(0x8000_0002);
+    // otherwise the Id is the offset in the buffer
+
     const SIZE: usize = std::mem::size_of::<Self>();
 }
 

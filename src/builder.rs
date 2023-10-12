@@ -1,6 +1,7 @@
 use super::*;
 use bytes::BufMut;
 
+/// A builder for JSON values.
 #[derive(Default)]
 pub struct Builder {
     buffer: Vec<u8>,
