@@ -39,8 +39,9 @@ impl fmt::Debug for Id {
     }
 }
 
-const TAG_I64: u8 = 1;
-const TAG_F64: u8 = 2;
-const TAG_STRING: u8 = 3;
-const TAG_ARRAY: u8 = 4;
-const TAG_OBJECT: u8 = 5;
+const TAG_U64: u8 = 1;
+const TAG_I64: u8 = 2;
+const TAG_F64: u8 = 3;
+const TAG_STRING: u8 = 4;
+const TAG_ARRAY: u8 = 5;
+const TAG_OBJECT: u8 = 6;

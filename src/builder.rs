@@ -2,7 +2,7 @@ use super::*;
 use bytes::BufMut;
 
 /// A builder for JSON values.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Builder {
     buffer: Vec<u8>,
     // string_ids: HashMap<String, Id>,
@@ -39,6 +39,14 @@ impl Builder {
         } else {
             Id::FALSE
         }
+    }
+
+    /// Adds an u64 value to the builder and returns its ID.
+    pub fn add_u64(&mut self, v: u64) -> Id {
+        let id = self.next_id();
+        self.buffer.push(TAG_U64);
+        self.buffer.put_u64_le(v);
+        id
     }
 
     /// Adds an i64 value to the builder and returns its ID.
@@ -115,8 +123,17 @@ impl Builder {
         match value {
             ValueRef::Null => self.add_null(),
             ValueRef::Bool(b) => self.add_bool(b),
-            ValueRef::I64(i) => self.add_i64(i),
-            ValueRef::F64(f) => self.add_f64(f),
+            ValueRef::Number(n) => {
+                if let Some(i) = n.as_u64() {
+                    self.add_u64(i)
+                } else if let Some(i) = n.as_i64() {
+                    self.add_i64(i)
+                } else if let Some(f) = n.as_f64() {
+                    self.add_f64(f)
+                } else {
+                    panic!("invalid number");
+                }
+            }
             ValueRef::String(s) => self.add_string(s),
             ValueRef::Array(a) => {
                 let ids = a.iter().map(|v| self.add_value_ref(v)).collect::<Vec<_>>();

@@ -2,6 +2,7 @@ use super::*;
 use std::{fmt, str::FromStr};
 
 /// An owned JSON array.
+#[derive(Clone, PartialEq, Eq)]
 pub struct Array {
     pub(crate) buffer: Box<[u8]>,
     /// The id of the root array element.

@@ -26,8 +26,7 @@ impl Serialize for ValueRef<'_> {
         match self {
             Self::Null => serializer.serialize_unit(),
             Self::Bool(b) => serializer.serialize_bool(*b),
-            Self::I64(n) => n.serialize(serializer),
-            Self::F64(n) => n.serialize(serializer),
+            Self::Number(n) => n.serialize(serializer),
             Self::String(s) => serializer.serialize_str(s),
             Self::Array(v) => v.serialize(serializer),
             Self::Object(o) => o.serialize(serializer),
@@ -90,7 +89,7 @@ impl<'de> DeserializeSeed<'de> for &mut Builder {
 
             #[inline]
             fn visit_u64<E>(self, value: u64) -> Result<Id, E> {
-                Ok(self.add_i64(value as i64))
+                Ok(self.add_u64(value))
             }
 
             #[inline]
@@ -170,13 +169,15 @@ mod tests {
             "true": true,
             "string": "hello",
             "integer": 43,
+            "u64max": 18446744073709551615,
+            "i64min": -9223372036854775808,
             "float": 178.5,
             "array": ["hello", "world"]
         }"#;
         let value: Value = json.parse().unwrap();
         assert_eq!(
             format!("{value}"),
-            r#"{"null":null,"false":false,"true":true,"string":"hello","integer":43,"float":178.5,"array":["hello","world"]}"#
+            r#"{"null":null,"false":false,"true":true,"string":"hello","integer":43,"u64max":18446744073709551615,"i64min":-9223372036854775808,"float":178.5,"array":["hello","world"]}"#
         );
         assert_eq!(
             format!("{value:#}"),
@@ -187,6 +188,8 @@ mod tests {
   "true": true,
   "string": "hello",
   "integer": 43,
+  "u64max": 18446744073709551615,
+  "i64min": -9223372036854775808,
   "float": 178.5,
   "array": [
     "hello",

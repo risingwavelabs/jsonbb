@@ -94,7 +94,9 @@ impl Builder {
             serde_json::Value::Null => self.add_null(),
             serde_json::Value::Bool(b) => self.add_bool(*b),
             serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
+                if let Some(i) = n.as_u64() {
+                    self.add_u64(i)
+                } else if let Some(i) = n.as_i64() {
                     self.add_i64(i)
                 } else if let Some(f) = n.as_f64() {
                     self.add_f64(f)
@@ -146,6 +148,14 @@ impl From<bool> for Value {
     fn from(b: bool) -> Self {
         let mut builder = Builder::default();
         let id = builder.add_bool(b);
+        builder.finish(id)
+    }
+}
+
+impl From<u64> for Value {
+    fn from(v: u64) -> Self {
+        let mut builder = Builder::default();
+        let id = builder.add_u64(v);
         builder.finish(id)
     }
 }

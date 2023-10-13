@@ -1,16 +1,15 @@
 use super::*;
+pub use serde_json::Number;
 
 /// A reference to a JSON value.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum ValueRef<'a> {
     /// Represents a JSON null value.
     Null,
     /// Represents a JSON boolean.
     Bool(bool),
-    /// Represents a JSON integer.
-    I64(i64),
-    /// Represents a JSON float.
-    F64(f64),
+    /// Represents a JSON number.
+    Number(Number),
     /// Represents a JSON string.
     String(&'a str),
     /// Represents a JSON array.
@@ -36,10 +35,18 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// If the value is an integer, returns the associated u64. Returns `None` otherwise.
+    pub fn as_u64(self) -> Option<u64> {
+        match self {
+            Self::Number(n) => n.as_u64(),
+            _ => None,
+        }
+    }
+
     /// If the value is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(self) -> Option<i64> {
         match self {
-            Self::I64(i) => Some(i),
+            Self::Number(n) => n.as_i64(),
             _ => None,
         }
     }
@@ -47,7 +54,7 @@ impl<'a> ValueRef<'a> {
     /// If the value is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(self) -> Option<f64> {
         match self {
-            Self::F64(f) => Some(f),
+            Self::Number(n) => n.as_f64(),
             _ => None,
         }
     }
@@ -89,8 +96,11 @@ impl<'a> ValueRef<'a> {
             _ => {
                 let mut buf = &buffer[id.0 as usize..];
                 match buf.get_u8() {
-                    TAG_I64 => Self::I64(buf.get_i64_le()),
-                    TAG_F64 => Self::F64(buf.get_f64_le()),
+                    TAG_U64 => Self::Number(buf.get_u64_le().into()),
+                    TAG_I64 => Self::Number(buf.get_i64_le().into()),
+                    TAG_F64 => {
+                        Self::Number(Number::from_f64(buf.get_f64_le()).expect("infinite number"))
+                    }
                     TAG_STRING => Self::String({
                         let len = buf.get_u32_le() as usize;
                         unsafe { std::str::from_utf8_unchecked(&buf[..len]) }
@@ -116,8 +126,7 @@ impl<'a> ValueRef<'a> {
         match self {
             Self::Null => 0,
             Self::Bool(_) => 0,
-            Self::I64(_) => 1 + 8,
-            Self::F64(_) => 1 + 8,
+            Self::Number(_) => 1 + 8,
             Self::String(s) => s.len() + 4 + 1,
             Self::Array(a) => a.buffer.len(),
             Self::Object(o) => o.buffer.len(),
@@ -130,8 +139,7 @@ impl fmt::Debug for ValueRef<'_> {
         match self {
             Self::Null => f.write_str("null"),
             Self::Bool(b) => b.fmt(f),
-            Self::I64(i) => i.fmt(f),
-            Self::F64(v) => v.fmt(f),
+            Self::Number(n) => n.fmt(f),
             Self::String(s) => s.fmt(f),
             Self::Array(a) => a.fmt(f),
             Self::Object(o) => o.fmt(f),
@@ -274,6 +282,7 @@ pub(crate) fn dump(mut buf: &[u8]) -> String {
     while !buf.is_empty() {
         let id = Id((buf.as_ptr() as usize - start_ptr) as u32);
         match buf.get_u8() {
+            TAG_U64 => writeln!(s, "{id:?}: {}", buf.get_u64_le()).unwrap(),
             TAG_I64 => writeln!(s, "{id:?}: {}", buf.get_i64_le()).unwrap(),
             TAG_F64 => writeln!(s, "{id:?}: {}", buf.get_f64_le()).unwrap(),
             TAG_STRING => {
