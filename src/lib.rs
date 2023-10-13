@@ -5,7 +5,7 @@ use std::fmt;
 
 mod array;
 mod builder;
-mod de;
+mod serde;
 mod value;
 mod value_ref;
 

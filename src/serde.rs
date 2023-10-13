@@ -1,10 +1,67 @@
-//! Deserialization to `Builder`.
+//! Serde support for `ValueRef` and `Builder`.
 
 use std::fmt;
 
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
+use serde::ser::{Serialize, SerializeMap, SerializeSeq};
 
-use crate::{Builder, Id};
+use crate::{ArrayRef, Builder, Id, ObjectRef, Value, ValueRef};
+
+impl Serialize for Value {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        self.as_ref().serialize(serializer)
+    }
+}
+
+impl Serialize for ValueRef<'_> {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        match self {
+            Self::Null => serializer.serialize_unit(),
+            Self::Bool(b) => serializer.serialize_bool(*b),
+            Self::I64(n) => n.serialize(serializer),
+            Self::F64(n) => n.serialize(serializer),
+            Self::String(s) => serializer.serialize_str(s),
+            Self::Array(v) => v.serialize(serializer),
+            Self::Object(o) => o.serialize(serializer),
+        }
+    }
+}
+
+impl Serialize for ArrayRef<'_> {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.len()))?;
+        for v in self.iter() {
+            seq.serialize_element(&v)?;
+        }
+        seq.end()
+    }
+}
+
+impl Serialize for ObjectRef<'_> {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(self.len()))?;
+        for (k, v) in self.iter() {
+            map.serialize_entry(k, &v)?;
+        }
+        map.end()
+    }
+}
 
 impl<'de> DeserializeSeed<'de> for &mut Builder {
     type Value = Id;
@@ -102,12 +159,10 @@ impl<'de> DeserializeSeed<'de> for &mut Builder {
 
 #[cfg(test)]
 mod tests {
-    use serde::de::DeserializeSeed;
-
-    use crate::Builder;
+    use crate::Value;
 
     #[test]
-    fn test_deserialize() {
+    fn test_serde() {
         let json = r#"
         {
             "null": null,
@@ -118,24 +173,27 @@ mod tests {
             "float": 178.5,
             "array": ["hello", "world"]
         }"#;
-        let mut builder = Builder::new();
-        let mut deserializer = serde_json::Deserializer::from_str(json);
-        let id = builder.deserialize(&mut deserializer).unwrap();
-        let value = builder.finish(id);
+        let value: Value = json.parse().unwrap();
         assert_eq!(
-            format!("{value:#?}"),
-            r#"{
-    "null": null,
-    "false": false,
-    "true": true,
-    "string": "hello",
-    "integer": 43,
-    "float": 178.5,
-    "array": [
-        "hello",
-        "world",
-    ],
+            format!("{value}"),
+            r#"{"null":null,"false":false,"true":true,"string":"hello","integer":43,"float":178.5,"array":["hello","world"]}"#
+        );
+        assert_eq!(
+            format!("{value:#}"),
+            r#"
+{
+  "null": null,
+  "false": false,
+  "true": true,
+  "string": "hello",
+  "integer": 43,
+  "float": 178.5,
+  "array": [
+    "hello",
+    "world"
+  ]
 }"#
+            .trim()
         );
     }
 }

@@ -139,6 +139,13 @@ impl fmt::Debug for ValueRef<'_> {
     }
 }
 
+/// Display a JSON value as a string.
+impl fmt::Display for ValueRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        serialize_in_json(self, f)
+    }
+}
+
 /// A reference to a JSON array.
 #[derive(Clone, Copy)]
 pub struct ArrayRef<'a> {
@@ -182,6 +189,13 @@ impl<'a> ArrayRef<'a> {
 impl fmt::Debug for ArrayRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+/// Display a JSON array as a string.
+impl fmt::Display for ArrayRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        serialize_in_json(self, f)
     }
 }
 
@@ -242,6 +256,13 @@ impl fmt::Debug for ObjectRef<'_> {
     }
 }
 
+/// Display a JSON object as a string.
+impl fmt::Display for ObjectRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        serialize_in_json(self, f)
+    }
+}
+
 /// Dump the internal buffer structure.
 /// This is useful for debugging.
 pub(crate) fn dump(mut buf: &[u8]) -> String {
@@ -289,4 +310,47 @@ pub(crate) fn dump(mut buf: &[u8]) -> String {
         }
     }
     string
+}
+
+/// Serialize a value in JSON format.
+fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    use std::io;
+
+    struct WriterFormatter<'a, 'b: 'a> {
+        inner: &'a mut fmt::Formatter<'b>,
+    }
+
+    impl<'a, 'b> io::Write for WriterFormatter<'a, 'b> {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            // Safety: the serializer below only emits valid utf8 when using
+            // the default formatter.
+            let s = unsafe { std::str::from_utf8_unchecked(buf) };
+            self.inner.write_str(s).map_err(io_error)?;
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn io_error(_: fmt::Error) -> io::Error {
+        // Error value does not matter because Display impl just maps it
+        // back to fmt::Error.
+        io::Error::new(io::ErrorKind::Other, "fmt error")
+    }
+
+    let alternate = f.alternate();
+    let mut wr = WriterFormatter { inner: f };
+    if alternate {
+        // {:#}
+        value
+            .serialize(&mut serde_json::Serializer::pretty(&mut wr))
+            .map_err(|_| fmt::Error)
+    } else {
+        // {}
+        value
+            .serialize(&mut serde_json::Serializer::new(&mut wr))
+            .map_err(|_| fmt::Error)
+    }
 }

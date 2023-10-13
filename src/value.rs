@@ -1,8 +1,8 @@
 use super::*;
-use serde::de::DeserializeSeed;
 use std::{fmt, str::FromStr};
 
 /// An owned JSON value.
+#[derive(Clone, PartialEq, Eq)]
 pub struct Value {
     pub(crate) buffer: Box<[u8]>,
     pub(crate) id: Id,
@@ -66,6 +66,13 @@ impl fmt::Debug for Value {
     }
 }
 
+/// Display a JSON value as a string.
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
         Self::from(&value)
@@ -118,6 +125,8 @@ impl FromStr for Value {
     type Err = serde_json::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use ::serde::de::DeserializeSeed;
+
         let mut builder = Builder::new();
         let mut deserializer = serde_json::Deserializer::from_str(s);
         let id = builder.deserialize(&mut deserializer)?;
