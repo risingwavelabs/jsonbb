@@ -22,6 +22,16 @@ fn bench_parse(c: &mut Criterion) {
     );
 }
 
+fn bench_tostring(c: &mut Criterion) {
+    let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
+    let v: flat_json::Value = json.parse().unwrap();
+    c.bench_function("tostring/this", |b| b.iter(|| v.to_string()));
+    let v: serde_json::Value = json.parse().unwrap();
+    c.bench_function("tostring/serde_json", |b| b.iter(|| v.to_string()));
+    let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
+    c.bench_function("tostring/jsonb", |b| b.iter(|| jsonb::to_string(&v)));
+}
+
 fn bench_from(c: &mut Criterion) {
     let s = "1234567890";
     c.bench_function("from_string/this", |b| b.iter(|| flat_json::Value::from(s)));
@@ -173,6 +183,7 @@ criterion_group!(
     benches,
     bench_from,
     bench_parse,
+    bench_tostring,
     bench_index,
     bench_index_array,
     bench_path
