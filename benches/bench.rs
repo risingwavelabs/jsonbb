@@ -1,35 +1,43 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
 fn bench_parse(c: &mut Criterion) {
-    let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
-    c.bench_function("parse/this", |b| {
-        b.iter(|| json.parse::<flat_json::Value>().unwrap())
-    });
-    c.bench_function("parse/serde_json", |b| {
-        b.iter(|| json.parse::<serde_json::Value>().unwrap())
-    });
-    c.bench_function("parse/jsonb", |b| {
-        b.iter(|| jsonb::parse_value(json.as_bytes()).unwrap().to_vec())
-    });
+    for (filename, json) in iter_json_files() {
+        c.bench_function(&format!("{filename} parse/this"), |b| {
+            b.iter(|| json.parse::<flat_json::Value>().unwrap())
+        });
+        c.bench_function(&format!("{filename} parse/serde_json"), |b| {
+            b.iter(|| json.parse::<serde_json::Value>().unwrap())
+        });
+        c.bench_function(&format!("{filename} parse/jsonb"), |b| {
+            b.iter(|| jsonb::parse_value(json.as_bytes()).unwrap().to_vec())
+        });
 
-    println!(
-        "capacity/this: {}",
-        json.parse::<flat_json::Value>().unwrap().capacity()
-    );
-    println!(
-        "capacity/jsonb: {}",
-        jsonb::parse_value(json.as_bytes()).unwrap().to_vec().len()
-    );
+        println!(
+            "{filename} size/this: {}",
+            json.parse::<flat_json::Value>().unwrap().capacity()
+        );
+        println!(
+            "{filename} size/jsonb: {}",
+            jsonb::parse_value(json.as_bytes()).unwrap().to_vec().len()
+        );
+    }
 }
 
-fn bench_tostring(c: &mut Criterion) {
-    let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
-    let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("tostring/this", |b| b.iter(|| v.to_string()));
-    let v: serde_json::Value = json.parse().unwrap();
-    c.bench_function("tostring/serde_json", |b| b.iter(|| v.to_string()));
-    let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
-    c.bench_function("tostring/jsonb", |b| b.iter(|| jsonb::to_string(&v)));
+fn bench_to_string(c: &mut Criterion) {
+    for (filename, json) in iter_json_files() {
+        let v: flat_json::Value = json.parse().unwrap();
+        c.bench_function(&format!("{filename} to_string/this"), |b| {
+            b.iter(|| v.to_string())
+        });
+        let v: serde_json::Value = json.parse().unwrap();
+        c.bench_function(&format!("{filename} to_string/serde_json"), |b| {
+            b.iter(|| v.to_string())
+        });
+        let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
+        c.bench_function(&format!("{filename} to_string/jsonb"), |b| {
+            b.iter(|| jsonb::to_string(&v))
+        });
+    }
 }
 
 fn bench_from(c: &mut Criterion) {
@@ -37,6 +45,27 @@ fn bench_from(c: &mut Criterion) {
     c.bench_function("from_string/this", |b| b.iter(|| flat_json::Value::from(s)));
     c.bench_function("from_string/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
+    });
+    c.bench_function("from_string/jsonb", |b| {
+        b.iter(|| jsonb::Value::from(s).to_vec())
+    });
+
+    let s = 123456789012345678_i64;
+    c.bench_function("from_i64/this", |b| b.iter(|| flat_json::Value::from(s)));
+    c.bench_function("from_i64/serde_json", |b| {
+        b.iter(|| serde_json::Value::from(s))
+    });
+    c.bench_function("from_i64/jsonb", |b| {
+        b.iter(|| jsonb::Value::from(s).to_vec())
+    });
+
+    let s = 1234567890.1234567890;
+    c.bench_function("from_f64/this", |b| b.iter(|| flat_json::Value::from(s)));
+    c.bench_function("from_f64/serde_json", |b| {
+        b.iter(|| serde_json::Value::from(s))
+    });
+    c.bench_function("from_f64/jsonb", |b| {
+        b.iter(|| jsonb::Value::from(s).to_vec())
     });
 }
 
@@ -48,7 +77,7 @@ fn bench_index(c: &mut Criterion) {
     });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json[0]/serde_json", |b| {
-        b.iter(|| v.as_array().unwrap().get(2).unwrap().to_owned())
+        b.iter(|| v.get(2).unwrap().to_owned())
     });
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json[0]/jsonb", |b| {
@@ -62,7 +91,7 @@ fn bench_index(c: &mut Criterion) {
     });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/serde_json", |b| {
-        b.iter(|| v.as_object().unwrap().get("a").unwrap().to_owned())
+        b.iter(|| v.get("a").unwrap().to_owned())
     });
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json['key']/jsonb", |b| {
@@ -157,33 +186,30 @@ fn bench_path(c: &mut Criterion) {
     });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json[path]/serde_json", |b| {
-        b.iter(|| {
-            v.as_object()
-                .unwrap()
-                .get("a")
-                .unwrap()
-                .get("b")
-                .unwrap()
-                .get(1)
-                .unwrap()
-                .to_owned()
-        })
+        b.iter(|| v["a"]["b"][1].to_owned())
     });
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json[path]/jsonb", |b| {
-        b.iter(|| {
-            // TODO: parsing is slow
-            let path = jsonb::jsonpath::parse_json_path("{a,b,1}".as_bytes()).unwrap();
-            jsonb::get_by_path(&v, path)
-        })
+        let path = jsonb::jsonpath::parse_json_path("{a,b,1}".as_bytes()).unwrap();
+        b.iter(|| jsonb::get_by_path(&v, path.clone()))
     });
+}
+
+/// Iterate over all files in the `./benches/data/` directory.
+fn iter_json_files() -> impl Iterator<Item = (String, String)> {
+    std::fs::read_dir("./benches/data/").unwrap().map(|path| {
+        let path = path.unwrap().path();
+        let filename = path.file_stem().unwrap().to_str().unwrap();
+        let json = std::fs::read_to_string(&path).unwrap();
+        (filename.to_owned(), json)
+    })
 }
 
 criterion_group!(
     benches,
     bench_from,
     bench_parse,
-    bench_tostring,
+    bench_to_string,
     bench_index,
     bench_index_array,
     bench_path
