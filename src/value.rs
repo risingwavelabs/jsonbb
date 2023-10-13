@@ -58,6 +58,13 @@ impl Value {
     pub fn capacity(&self) -> usize {
         self.buffer.len()
     }
+
+    /// Index into a JSON array or object.
+    /// A string index can be used to access a value in an object,
+    /// and a usize index can be used to access an element of an array.
+    pub fn get(&self, index: impl Index) -> Option<ValueRef<'_>> {
+        index.index_into(&self.as_ref())
+    }
 }
 
 impl fmt::Debug for Value {

@@ -72,9 +72,7 @@ fn bench_from(c: &mut Criterion) {
 fn bench_index(c: &mut Criterion) {
     let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
     let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("json[0]/this", |b| {
-        b.iter(|| v.as_array().unwrap().get(2).unwrap().to_owned())
-    });
+    c.bench_function("json[0]/this", |b| b.iter(|| v.get(2).unwrap().to_owned()));
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json[0]/serde_json", |b| {
         b.iter(|| v.get(2).unwrap().to_owned())
@@ -87,7 +85,7 @@ fn bench_index(c: &mut Criterion) {
     let json = r#"{"a": {"b":"foo"}}"#;
     let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/this", |b| {
-        b.iter(|| v.as_object().unwrap().get("a").unwrap().to_owned())
+        b.iter(|| v.get("a").unwrap().to_owned())
     });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/serde_json", |b| {
@@ -169,15 +167,9 @@ fn bench_path(c: &mut Criterion) {
     let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json[path]/this", |b| {
         b.iter(|| {
-            v.as_object()
-                .unwrap()
-                .get("a")
-                .unwrap()
-                .as_object()
+            v.get("a")
                 .unwrap()
                 .get("b")
-                .unwrap()
-                .as_array()
                 .unwrap()
                 .get(1)
                 .unwrap()

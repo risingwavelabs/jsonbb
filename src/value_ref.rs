@@ -132,6 +132,13 @@ impl<'a> ValueRef<'a> {
             Self::Object(o) => o.buffer.len(),
         }
     }
+
+    /// Index into a JSON array or object.
+    /// A string index can be used to access a value in an object,
+    /// and a usize index can be used to access an element of an array.
+    pub fn get(&self, index: impl Index) -> Option<ValueRef<'a>> {
+        index.index_into(self)
+    }
 }
 
 impl fmt::Debug for ValueRef<'_> {
@@ -362,4 +369,56 @@ fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>
             .serialize(&mut serde_json::Serializer::new(&mut wr))
             .map_err(|_| fmt::Error)
     }
+}
+
+/// A type that can be used to index into a `ValueRef`.
+pub trait Index: private::Sealed {
+    /// Return None if the key is not already in the array or object.
+    #[doc(hidden)]
+    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>>;
+}
+
+impl Index for usize {
+    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+        match v {
+            ValueRef::Array(a) => a.get(*self),
+            _ => None,
+        }
+    }
+}
+
+impl Index for str {
+    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+        match v {
+            ValueRef::Object(o) => o.get(self),
+            _ => None,
+        }
+    }
+}
+
+impl Index for String {
+    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+        match v {
+            ValueRef::Object(o) => o.get(self),
+            _ => None,
+        }
+    }
+}
+
+impl<'a, T> Index for &'a T
+where
+    T: ?Sized + Index,
+{
+    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+        (**self).index_into(v)
+    }
+}
+
+// Prevent users from implementing the Index trait.
+mod private {
+    pub trait Sealed {}
+    impl Sealed for usize {}
+    impl Sealed for str {}
+    impl Sealed for String {}
+    impl<'a, T> Sealed for &'a T where T: ?Sized + Sealed {}
 }
