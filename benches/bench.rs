@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
@@ -10,6 +10,13 @@ fn bench_parse(c: &mut Criterion) {
         });
         c.bench_function(&format!("{filename} parse/jsonb"), |b| {
             b.iter(|| jsonb::parse_value(json.as_bytes()).unwrap().to_vec())
+        });
+        c.bench_function(&format!("{filename} parse/simd-json"), |b| {
+            b.iter_batched(
+                || Vec::from(json.clone()),
+                |mut data| simd_json::to_owned_value(&mut data).unwrap(),
+                BatchSize::SmallInput,
+            )
         });
 
         println!(
@@ -183,7 +190,7 @@ fn bench_path(c: &mut Criterion) {
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json[path]/jsonb", |b| {
         let path = jsonb::jsonpath::parse_json_path("{a,b,1}".as_bytes()).unwrap();
-        b.iter(|| jsonb::get_by_path(&v, path.clone()))
+        b.iter(|| jsonb::get_by_path(&v, path.clone(), &mut vec![], &mut vec![]))
     });
 }
 
