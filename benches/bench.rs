@@ -20,12 +20,13 @@ fn bench_parse(c: &mut Criterion) {
             )
         });
 
+        println!("{filename} size/text:\t{}", json.len());
         println!(
-            "{filename} size/this: {}",
+            "{filename} size/this:\t{}",
             json.parse::<flat_json::Value>().unwrap().capacity()
         );
         println!(
-            "{filename} size/jsonb: {}",
+            "{filename} size/jsonb:\t{}",
             jsonb::parse_value(json.as_bytes()).unwrap().to_vec().len()
         );
     }
@@ -196,6 +197,97 @@ fn bench_path(c: &mut Criterion) {
     });
 }
 
+/// Index JSONs loaded from file.
+fn bench_file_index(c: &mut Criterion) {
+    struct TestSuite {
+        file: &'static str,
+        paths: &'static [&'static str],
+        expected: Option<&'static str>,
+    }
+    let test_suites = &[
+        TestSuite {
+            file: "canada",
+            paths: &["type"],
+            expected: Some("FeatureCollection"),
+        },
+        TestSuite {
+            file: "citm_catalog",
+            paths: &["areaNames"],
+            expected: None,
+        },
+        TestSuite {
+            file: "citm_catalog",
+            paths: &["areaNames", "205705994"],
+            expected: Some("1er balcon central"),
+        },
+        TestSuite {
+            file: "citm_catalog",
+            paths: &["topicNames", "324846100"],
+            expected: Some("Formations musicales"),
+        },
+        TestSuite {
+            file: "twitter",
+            paths: &["search_metadata", "max_id_str"],
+            expected: Some("505874924095815681"),
+        },
+    ];
+
+    for test_suite in test_suites {
+        let suite_name = format!("{}->{}", test_suite.file, test_suite.paths.join("->"));
+        let bytes = std::fs::read(&format!("./benches/data/{}.json", test_suite.file)).unwrap();
+
+        let value: flat_json::Value = std::str::from_utf8(&bytes).unwrap().parse().unwrap();
+        c.bench_function(&format!("{suite_name} index/this"), |b| {
+            let bench = || {
+                let mut v = value.as_ref();
+                for path in test_suite.paths {
+                    v = v.get(path).unwrap();
+                }
+                v.to_owned()
+            };
+            if let Some(expected) = test_suite.expected {
+                assert_eq!(bench().as_str(), Some(expected));
+            }
+            b.iter(bench);
+        });
+
+        let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        c.bench_function(&format!("{suite_name} index/serde_json"), |b| {
+            let bench = || {
+                let mut v = &value;
+                for path in test_suite.paths {
+                    v = v.get(path).unwrap();
+                }
+                v.to_owned()
+            };
+            if let Some(expected) = test_suite.expected {
+                assert_eq!(bench().as_str(), Some(expected));
+            }
+            b.iter(bench);
+        });
+
+        let jsonb = jsonb::parse_value(&bytes).unwrap().to_vec();
+        let json_path = jsonb::jsonpath::JsonPath {
+            paths: test_suite
+                .paths
+                .iter()
+                .map(|p| jsonb::jsonpath::Path::DotField(std::borrow::Cow::Borrowed(p)))
+                .collect(),
+        };
+        c.bench_function(&format!("{suite_name} index/jsonb"), |b| {
+            let bench = || {
+                let mut data = vec![];
+                jsonb::get_by_path(&jsonb, json_path.clone(), &mut data, &mut vec![]);
+                data
+            };
+            if let Some(expected) = test_suite.expected {
+                assert_eq!(jsonb::as_str(&bench()), Some(expected.into()));
+            }
+            b.iter(bench);
+        });
+    }
+}
+
 /// Iterate over all files in the `./benches/data/` directory.
 fn iter_json_files() -> impl Iterator<Item = (String, String)> {
     std::fs::read_dir("./benches/data/").unwrap().map(|path| {
@@ -213,6 +305,7 @@ criterion_group!(
     bench_to_string,
     bench_index,
     bench_index_array,
+    bench_file_index,
     bench_path
 );
 criterion_main!(benches);
