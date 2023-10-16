@@ -273,9 +273,17 @@ pub struct ObjectRef<'a> {
 impl<'a> ObjectRef<'a> {
     /// Returns the value associated with the given key, or `None` if the key is not present.
     pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
-        // TODO: binary search
-        // linear search
-        self.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+        // do binary search since entries are ordered by key
+        let idx = self
+            .entries()
+            .binary_search_by_key(&key, |&(kentry, _)| unsafe {
+                ValueRef::from_raw(self.ptr, kentry)
+                    .as_str()
+                    .expect("key must be string")
+            })
+            .ok()?;
+        let (_, ventry) = self.entries()[idx];
+        Some(unsafe { ValueRef::from_raw(self.ptr, ventry) })
     }
 
     /// Returns the number of elements in the object.
@@ -289,14 +297,10 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's key-value pairs.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
+    pub fn iter(&'a self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
         let base = self.ptr;
         unsafe {
-            let entries = std::slice::from_raw_parts(
-                (self.ptr as *const u32).add(2) as *const (Entry, Entry),
-                self.len(),
-            );
-            entries.iter().map(move |&(kentry, ventry)| {
+            self.entries().iter().map(move |&(kentry, ventry)| {
                 let k = ValueRef::from_raw(base, kentry);
                 let v = ValueRef::from_raw(base, ventry);
                 (k.as_str().expect("key must be string"), v)
@@ -305,12 +309,12 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's keys.
-    pub fn keys(&self) -> impl ExactSizeIterator<Item = &'a str> {
+    pub fn keys(&'a self) -> impl ExactSizeIterator<Item = &'a str> {
         self.iter().map(|(k, _)| k)
     }
 
     /// Returns an iterator over the object's values.
-    pub fn values(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
+    pub fn values(&'a self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         self.iter().map(|(_, v)| v)
     }
 
@@ -331,6 +335,16 @@ impl<'a> ObjectRef<'a> {
         Self {
             ptr,
             _mark: PhantomData,
+        }
+    }
+
+    /// Returns the key-value entries.
+    fn entries(&self) -> &[(Entry, Entry)] {
+        unsafe {
+            std::slice::from_raw_parts(
+                (self.ptr as *const u32).add(2) as *const (Entry, Entry),
+                self.len(),
+            )
         }
     }
 }

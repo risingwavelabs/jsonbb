@@ -126,7 +126,20 @@ impl<'a> Builder<'a> {
         for ptr in self.pointers.drain(npointer..) {
             self.buffer.put_u32_ne(ptr.to_entry(offset));
         }
-        // TODO: sort entries by key
+        // sort entries by key
+        let entries = unsafe {
+            std::slice::from_raw_parts_mut(
+                self.buffer.as_ptr().add(offset + 8) as *mut (Entry, Entry),
+                len,
+            )
+        };
+        let base = unsafe { self.buffer.as_ptr().add(offset) };
+        entries.sort_unstable_by_key(|(k, _)| unsafe {
+            ValueRef::from_raw(base, *k)
+                .as_str()
+                .expect("key must be string")
+        });
+
         self.pointers.push(Ptr {
             offset,
             entry: Entry::object(),

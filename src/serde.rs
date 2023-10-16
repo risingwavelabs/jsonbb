@@ -170,24 +170,24 @@ mod tests {
         let value: Value = json.parse().unwrap();
         assert_eq!(
             format!("{value}"),
-            r#"{"null":null,"false":false,"true":true,"string":"hello","integer":43,"u64max":18446744073709551615,"i64min":-9223372036854775808,"float":178.5,"array":["hello","world"]}"#
+            r#"{"array":["hello","world"],"false":false,"float":178.5,"i64min":-9223372036854775808,"integer":43,"null":null,"string":"hello","true":true,"u64max":18446744073709551615}"#
         );
         assert_eq!(
             format!("{value:#}"),
             r#"
 {
-  "null": null,
-  "false": false,
-  "true": true,
-  "string": "hello",
-  "integer": 43,
-  "u64max": 18446744073709551615,
-  "i64min": -9223372036854775808,
-  "float": 178.5,
   "array": [
     "hello",
     "world"
-  ]
+  ],
+  "false": false,
+  "float": 178.5,
+  "i64min": -9223372036854775808,
+  "integer": 43,
+  "null": null,
+  "string": "hello",
+  "true": true,
+  "u64max": 18446744073709551615
 }"#
             .trim()
         );

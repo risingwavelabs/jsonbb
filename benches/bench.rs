@@ -81,28 +81,28 @@ fn bench_from(c: &mut Criterion) {
 fn bench_index(c: &mut Criterion) {
     let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
     let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("json[0]/this", |b| b.iter(|| v.get(2).unwrap().to_owned()));
+    c.bench_function("json[i]/this", |b| b.iter(|| v.get(2).unwrap().to_owned()));
     let v: serde_json::Value = json.parse().unwrap();
-    c.bench_function("json[0]/serde_json", |b| {
+    c.bench_function("json[i]/serde_json", |b| {
         b.iter(|| v.get(2).unwrap().to_owned())
     });
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
-    c.bench_function("json[0]/jsonb", |b| {
+    c.bench_function("json[i]/jsonb", |b| {
         b.iter(|| jsonb::get_by_index(&v, 2).unwrap())
     });
 
-    let json = r#"{"a": {"b":"foo"}}"#;
+    let json = r#"{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": {"a":"foo"}}"#;
     let v: flat_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/this", |b| {
-        b.iter(|| v.get("a").unwrap().to_owned())
+        b.iter(|| v.get("f").unwrap().to_owned())
     });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json['key']/serde_json", |b| {
-        b.iter(|| v.get("a").unwrap().to_owned())
+        b.iter(|| v.get("f").unwrap().to_owned())
     });
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json['key']/jsonb", |b| {
-        b.iter(|| jsonb::get_by_name(&v, "a", false).unwrap())
+        b.iter(|| jsonb::get_by_name(&v, "f", false).unwrap())
     });
 }
 
