@@ -150,6 +150,21 @@ impl fmt::Display for Value {
     }
 }
 
+/// # Example
+///
+/// ```
+/// let a: flat_json::Value = r#"{"a": 1.0, "b": 2}"#.parse().unwrap();
+/// let b: flat_json::Value = r#"{"b": 2, "a": 1.00}"#.parse().unwrap();
+/// assert_eq!(a, b);
+/// ```
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().eq(&other.as_ref())
+    }
+}
+
+impl Eq for Value {}
+
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
         Self::from(&value)

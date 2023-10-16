@@ -4,7 +4,7 @@ use super::*;
 pub use serde_json::Number;
 
 /// A reference to a JSON value.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ValueRef<'a> {
     /// Represents a JSON null value.
     Null,
@@ -257,6 +257,17 @@ impl fmt::Display for ArrayRef<'_> {
     }
 }
 
+impl PartialEq for ArrayRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        self.iter().eq(other.iter())
+    }
+}
+
+impl Eq for ArrayRef<'_> {}
+
 /// A reference to a JSON object.
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
@@ -361,6 +372,17 @@ impl fmt::Display for ObjectRef<'_> {
         serialize_in_json(self, f)
     }
 }
+
+impl PartialEq for ObjectRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+        self.iter().eq(other.iter())
+    }
+}
+
+impl Eq for ObjectRef<'_> {}
 
 /// Serialize a value in JSON format.
 fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>) -> fmt::Result {
