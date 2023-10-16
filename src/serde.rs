@@ -5,7 +5,7 @@ use std::fmt;
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeMap, SerializeSeq};
 
-use crate::{ArrayRef, Builder, Id, ObjectRef, Value, ValueRef};
+use crate::{ArrayRef, Builder, ObjectRef, Ptr, Value, ValueRef};
 
 impl Serialize for Value {
     #[inline]
@@ -62,43 +62,43 @@ impl Serialize for ObjectRef<'_> {
     }
 }
 
-impl<'de> DeserializeSeed<'de> for &mut Builder {
-    type Value = Id;
+impl<'de> DeserializeSeed<'de> for &mut Builder<'_> {
+    type Value = Ptr;
 
     #[inline]
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        impl<'de> Visitor<'de> for &mut Builder {
-            type Value = Id;
+        impl<'de> Visitor<'de> for &mut Builder<'_> {
+            type Value = Ptr;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("any valid JSON value")
             }
 
             #[inline]
-            fn visit_bool<E>(self, value: bool) -> Result<Id, E> {
+            fn visit_bool<E>(self, value: bool) -> Result<Ptr, E> {
                 Ok(self.add_bool(value))
             }
 
             #[inline]
-            fn visit_i64<E>(self, value: i64) -> Result<Id, E> {
+            fn visit_i64<E>(self, value: i64) -> Result<Ptr, E> {
                 Ok(self.add_i64(value))
             }
 
             #[inline]
-            fn visit_u64<E>(self, value: u64) -> Result<Id, E> {
+            fn visit_u64<E>(self, value: u64) -> Result<Ptr, E> {
                 Ok(self.add_u64(value))
             }
 
             #[inline]
-            fn visit_f64<E>(self, value: f64) -> Result<Id, E> {
+            fn visit_f64<E>(self, value: f64) -> Result<Ptr, E> {
                 Ok(self.add_f64(value))
             }
 
             #[inline]
-            fn visit_str<E>(self, value: &str) -> Result<Id, E>
+            fn visit_str<E>(self, value: &str) -> Result<Ptr, E>
             where
                 E: serde::de::Error,
             {
@@ -106,12 +106,12 @@ impl<'de> DeserializeSeed<'de> for &mut Builder {
             }
 
             #[inline]
-            fn visit_none<E>(self) -> Result<Id, E> {
+            fn visit_none<E>(self) -> Result<Ptr, E> {
                 Ok(self.add_null())
             }
 
             #[inline]
-            fn visit_some<D>(self, deserializer: D) -> Result<Id, D::Error>
+            fn visit_some<D>(self, deserializer: D) -> Result<Ptr, D::Error>
             where
                 D: serde::Deserializer<'de>,
             {
@@ -119,28 +119,30 @@ impl<'de> DeserializeSeed<'de> for &mut Builder {
             }
 
             #[inline]
-            fn visit_unit<E>(self) -> Result<Id, E> {
+            fn visit_unit<E>(self) -> Result<Ptr, E> {
                 Ok(self.add_null())
             }
 
             #[inline]
-            fn visit_seq<V>(self, mut visitor: V) -> Result<Id, V::Error>
+            fn visit_seq<V>(self, mut visitor: V) -> Result<Ptr, V::Error>
             where
                 V: SeqAccess<'de>,
             {
+                let start = self.len();
                 let mut ids = Vec::with_capacity(visitor.size_hint().unwrap_or(0));
 
                 while let Some(elem) = visitor.next_element_seed(&mut *self)? {
                     ids.push(elem);
                 }
 
-                Ok(self.add_array(&ids))
+                Ok(self.add_array(start, &ids))
             }
 
-            fn visit_map<V>(self, mut visitor: V) -> Result<Id, V::Error>
+            fn visit_map<V>(self, mut visitor: V) -> Result<Ptr, V::Error>
             where
                 V: MapAccess<'de>,
             {
+                let start = self.len();
                 let mut kvs = Vec::with_capacity(visitor.size_hint().unwrap_or(0));
 
                 while let Some(key) = visitor.next_key_seed(&mut *self)? {
@@ -148,7 +150,7 @@ impl<'de> DeserializeSeed<'de> for &mut Builder {
                     kvs.push((key, value));
                 }
 
-                Ok(self.add_object_ids(&kvs))
+                Ok(self.add_object(start, kvs.into_iter()))
             }
         }
 

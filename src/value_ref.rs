@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use super::*;
 pub use serde_json::Number;
 
@@ -88,36 +90,40 @@ impl<'a> ValueRef<'a> {
         self.into()
     }
 
-    pub(crate) fn from(buffer: &'a [u8], id: Id) -> Self {
-        match id {
-            Id::NULL => Self::Null,
-            Id::TRUE => Self::Bool(true),
-            Id::FALSE => Self::Bool(false),
-            _ => {
-                let mut buf = &buffer[id.0 as usize..];
-                match buf.get_u8() {
-                    TAG_U64 => Self::Number(buf.get_u64_le().into()),
-                    TAG_I64 => Self::Number(buf.get_i64_le().into()),
-                    TAG_F64 => {
-                        Self::Number(Number::from_f64(buf.get_f64_le()).expect("infinite number"))
-                    }
-                    TAG_STRING => Self::String({
-                        let len = buf.get_u32_le() as usize;
-                        unsafe { std::str::from_utf8_unchecked(&buf[..len]) }
-                    }),
-                    TAG_ARRAY => Self::Array(ArrayRef {
-                        buffer,
-                        id,
-                        len: buf.get_u32_le(),
-                    }),
-                    TAG_OBJECT => Self::Object(ObjectRef {
-                        buffer,
-                        id,
-                        len: buf.get_u32_le(),
-                    }),
-                    t => panic!("invalid tag: {t}"),
+    pub(crate) unsafe fn from_raw(base: *const u8, entry: Entry) -> Self {
+        if entry.is_null() {
+            Self::Null
+        } else if entry.is_false() {
+            Self::Bool(false)
+        } else if entry.is_true() {
+            Self::Bool(true)
+        } else if entry.is_number() {
+            let ptr = entry.apply_offset(base);
+            let kind = ptr.read();
+            let payload = ptr.add(1);
+            match kind {
+                NUMBER_U64 => Self::Number(Number::from((payload as *const u64).read())),
+                NUMBER_I64 => Self::Number(Number::from((payload as *const i64).read())),
+                NUMBER_F64 => {
+                    Self::Number(Number::from_f64((payload as *const f64).read()).unwrap())
                 }
+                _ => panic!("invalid number kind"),
             }
+        } else if entry.is_string() {
+            let ptr = entry.apply_offset(base);
+            let len = (ptr as *const u32).read() as usize;
+            let payload = unsafe {
+                std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.add(4), len))
+            };
+            Self::String(payload)
+        } else if entry.is_array() {
+            let ptr = entry.apply_offset(base);
+            Self::Array(ArrayRef::from_raw(ptr))
+        } else if entry.is_object() {
+            let ptr = entry.apply_offset(base);
+            Self::Object(ObjectRef::from_raw(ptr))
+        } else {
+            panic!("invalid entry");
         }
     }
 
@@ -127,9 +133,9 @@ impl<'a> ValueRef<'a> {
             Self::Null => 0,
             Self::Bool(_) => 0,
             Self::Number(_) => 1 + 8,
-            Self::String(s) => s.len() + 4 + 1,
-            Self::Array(a) => a.buffer.len(),
-            Self::Object(o) => o.buffer.len(),
+            Self::String(s) => s.len() + 4,
+            Self::Array(a) => a.as_slice().len(),
+            Self::Object(o) => o.as_slice().len(),
         }
     }
 
@@ -164,10 +170,9 @@ impl fmt::Display for ValueRef<'_> {
 /// A reference to a JSON array.
 #[derive(Clone, Copy)]
 pub struct ArrayRef<'a> {
-    pub(crate) buffer: &'a [u8],
-    // assume tag == TAG_ARRAY
-    pub(crate) id: Id,
-    pub(crate) len: u32,
+    // len (u32) + start_offset (u32) + [eptr] x len
+    ptr: *const u8,
+    _mark: PhantomData<&'a u8>,
 }
 
 impl<'a> ArrayRef<'a> {
@@ -176,16 +181,13 @@ impl<'a> ArrayRef<'a> {
         if index >= self.len() {
             return None;
         }
-        let ptr = self.id.0 as usize + 1 + Id::SIZE * (index + 1);
-        Some(ValueRef::from(
-            self.buffer,
-            Id((&self.buffer[ptr..]).get_u32_le()),
-        ))
+        let entry = unsafe { ((self.ptr as *const u32).add(2 + index) as *const Entry).read() };
+        Some(unsafe { ValueRef::from_raw(self.ptr, entry) })
     }
 
     /// Returns the number of elements in the array.
     pub fn len(&self) -> usize {
-        self.len as usize
+        unsafe { (self.ptr as *const u32).read() as usize }
     }
 
     /// Returns `true` if the array contains no elements.
@@ -194,10 +196,35 @@ impl<'a> ArrayRef<'a> {
     }
 
     /// Returns an iterator over the array's elements.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
-        let buffer = self.buffer;
-        let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
-        (0..self.len()).map(move |_| ValueRef::from(buffer, Id(buf.get_u32_le())))
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
+        let base = self.ptr;
+        unsafe {
+            let entries = std::slice::from_raw_parts(
+                (self.ptr as *const u32).add(2) as *const Entry,
+                self.len(),
+            );
+            entries.iter().map(move |e| ValueRef::from_raw(base, *e))
+        }
+    }
+
+    /// Returns the entire array as a slice.
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        let len = self.len();
+        let elem_len = self.elements_len();
+        unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 4 * len) }
+    }
+
+    /// Returns the length of the array's elements, in bytes.
+    pub(crate) fn elements_len(&self) -> usize {
+        unsafe { (self.ptr as *const u32).add(1).read() as usize }
+    }
+
+    /// Creates an `ArrayRef` from a raw pointer.
+    unsafe fn from_raw(ptr: *const u8) -> Self {
+        Self {
+            ptr,
+            _mark: PhantomData,
+        }
     }
 }
 
@@ -217,10 +244,9 @@ impl fmt::Display for ArrayRef<'_> {
 /// A reference to a JSON object.
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
-    buffer: &'a [u8],
-    // assume tag == TAG_OBJECT
-    id: Id,
-    len: u32,
+    // n (u32) + start_offset (u32) + [kptr, vptr] x n
+    ptr: *const u8,
+    _mark: PhantomData<&'a u8>,
 }
 
 impl<'a> ObjectRef<'a> {
@@ -233,7 +259,7 @@ impl<'a> ObjectRef<'a> {
 
     /// Returns the number of elements in the object.
     pub fn len(&self) -> usize {
-        self.len as usize
+        unsafe { (self.ptr as *const u32).read() as usize }
     }
 
     /// Returns `true` if the object contains no elements.
@@ -242,16 +268,19 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's key-value pairs.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> + 'a {
-        let buffer = self.buffer;
-        let mut buf = &self.buffer[self.id.0 as usize + 1 + Id::SIZE..];
-        (0..self.len()).map(move |_| {
-            let kid = Id(buf.get_u32_le());
-            let vid = Id(buf.get_u32_le());
-            let k = ValueRef::from(buffer, kid).as_str().unwrap();
-            let v = ValueRef::from(buffer, vid);
-            (k, v)
-        })
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
+        let base = self.ptr;
+        unsafe {
+            let entries = std::slice::from_raw_parts(
+                (self.ptr as *const u32).add(2) as *const (Entry, Entry),
+                self.len(),
+            );
+            entries.iter().map(move |&(kentry, ventry)| {
+                let k = ValueRef::from_raw(base, kentry);
+                let v = ValueRef::from_raw(base, ventry);
+                (k.as_str().expect("key must be string"), v)
+            })
+        }
     }
 
     /// Returns an iterator over the object's keys.
@@ -262,6 +291,26 @@ impl<'a> ObjectRef<'a> {
     /// Returns an iterator over the object's values.
     pub fn values(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
         self.iter().map(|(_, v)| v)
+    }
+
+    /// Returns the entire object as a slice.
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        let len = self.len();
+        let elem_len = self.elements_len();
+        unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 8 * len) }
+    }
+
+    /// Returns the length of the object's elements, in bytes.
+    pub(crate) fn elements_len(&self) -> usize {
+        unsafe { (self.ptr as *const u32).add(1).read() as usize }
+    }
+
+    /// Creates an `ArrayRef` from a raw pointer.
+    unsafe fn from_raw(ptr: *const u8) -> Self {
+        Self {
+            ptr,
+            _mark: PhantomData,
+        }
     }
 }
 
@@ -276,56 +325,6 @@ impl fmt::Display for ObjectRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         serialize_in_json(self, f)
     }
-}
-
-/// Dump the internal buffer structure.
-/// This is useful for debugging.
-pub(crate) fn dump(mut buf: &[u8]) -> String {
-    use std::fmt::Write;
-    let mut string = String::new();
-    let s = &mut string;
-
-    let start_ptr = buf.as_ptr() as usize;
-    while !buf.is_empty() {
-        let id = Id((buf.as_ptr() as usize - start_ptr) as u32);
-        match buf.get_u8() {
-            TAG_U64 => writeln!(s, "{id:?}: {}", buf.get_u64_le()).unwrap(),
-            TAG_I64 => writeln!(s, "{id:?}: {}", buf.get_i64_le()).unwrap(),
-            TAG_F64 => writeln!(s, "{id:?}: {}", buf.get_f64_le()).unwrap(),
-            TAG_STRING => {
-                let len = buf.get_u32_le() as usize;
-                let str = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                buf = &buf[len..];
-                writeln!(s, "{id:?}: {str:?}").unwrap();
-            }
-            TAG_ARRAY => {
-                let len = buf.get_u32_le() as usize;
-                write!(s, "{id:?}: [").unwrap();
-                for i in 0..len {
-                    if i != 0 {
-                        write!(s, ", ").unwrap();
-                    }
-                    write!(s, "{:?}", Id(buf.get_u32_le())).unwrap();
-                }
-                writeln!(s, "]").unwrap();
-            }
-            TAG_OBJECT => {
-                let len = buf.get_u32_le() as usize;
-                write!(s, "{id:?}: {{").unwrap();
-                for i in 0..len {
-                    if i != 0 {
-                        write!(s, ", ").unwrap();
-                    }
-                    let kid = Id(buf.get_u32_le());
-                    let vid = Id(buf.get_u32_le());
-                    write!(s, "{kid:?}:{vid:?}").unwrap();
-                }
-                writeln!(s, "}}").unwrap();
-            }
-            t => panic!("invalid tag: {t}"),
-        }
-    }
-    string
 }
 
 /// Serialize a value in JSON format.

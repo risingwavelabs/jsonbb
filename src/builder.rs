@@ -2,124 +2,117 @@ use super::*;
 use bytes::BufMut;
 
 /// A builder for JSON values.
-#[derive(Default, Debug)]
-pub struct Builder {
-    buffer: Vec<u8>,
-    // string_ids: HashMap<String, Id>,
+#[derive(Debug)]
+pub struct Builder<'a> {
+    buffer: &'a mut Vec<u8>,
 }
 
-impl Builder {
+impl<'a> Builder<'a> {
     /// Creates a new [`Builder`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(buffer: &'a mut Vec<u8>) -> Self {
+        Builder { buffer }
     }
 
-    /// Creates a new [`Builder`] with the given capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            buffer: Vec::with_capacity(capacity),
-            // string_ids: HashMap::new(),
+    /// Adds a null value to the builder and returns its Ptr.
+    pub fn add_null(&mut self) -> Ptr {
+        Ptr {
+            offset: 0,
+            entry: Entry::null(),
         }
     }
 
-    /// Returns the ID that will be assigned to the next value.
-    fn next_id(&self) -> Id {
-        Id(self.buffer.len() as u32)
-    }
-
-    /// Adds a null value to the builder and returns its ID.
-    pub fn add_null(&mut self) -> Id {
-        Id::NULL
-    }
-
-    /// Adds a boolean value to the builder and returns its ID.
-    pub fn add_bool(&mut self, v: bool) -> Id {
-        if v {
-            Id::TRUE
-        } else {
-            Id::FALSE
+    /// Adds a boolean value to the builder and returns its Ptr.
+    pub fn add_bool(&mut self, v: bool) -> Ptr {
+        Ptr {
+            offset: 0,
+            entry: if v { Entry::true_() } else { Entry::false_() },
         }
     }
 
-    /// Adds an u64 value to the builder and returns its ID.
-    pub fn add_u64(&mut self, v: u64) -> Id {
-        let id = self.next_id();
-        self.buffer.push(TAG_U64);
-        self.buffer.put_u64_le(v);
-        id
+    /// Adds an u64 value to the builder and returns its Ptr.
+    pub fn add_u64(&mut self, v: u64) -> Ptr {
+        let offset = self.buffer.len();
+        self.buffer.push(NUMBER_U64);
+        self.buffer.put_u64_ne(v);
+        Ptr {
+            offset,
+            entry: Entry::number(),
+        }
     }
 
-    /// Adds an i64 value to the builder and returns its ID.
-    pub fn add_i64(&mut self, v: i64) -> Id {
-        let id = self.next_id();
-        self.buffer.push(TAG_I64);
-        self.buffer.put_i64_le(v);
-        id
+    /// Adds an i64 value to the builder and returns its Ptr.
+    pub fn add_i64(&mut self, v: i64) -> Ptr {
+        let offset = self.buffer.len();
+        self.buffer.push(NUMBER_I64);
+        self.buffer.put_i64_ne(v);
+        Ptr {
+            offset,
+            entry: Entry::number(),
+        }
     }
 
-    /// Adds an f64 value to the builder and returns its ID.
-    pub fn add_f64(&mut self, v: f64) -> Id {
-        let id = self.next_id();
-        self.buffer.push(TAG_F64);
-        self.buffer.put_f64_le(v);
-        id
+    /// Adds an f64 value to the builder and returns its Ptr.
+    pub fn add_f64(&mut self, v: f64) -> Ptr {
+        let offset = self.buffer.len();
+        self.buffer.push(NUMBER_F64);
+        self.buffer.put_f64_ne(v);
+        Ptr {
+            offset,
+            entry: Entry::number(),
+        }
     }
 
-    /// Adds a string value to the builder and returns its ID.
-    pub fn add_string(&mut self, v: &str) -> Id {
-        // if let Some(id) = self.string_ids.get(v) {
-        //     return *id;
-        // }
-        let id = self.next_id();
-        // self.string_ids.insert(v.into(), id);
-        self.buffer.push(TAG_STRING);
-        self.buffer.put_u32_le(v.len() as u32);
+    /// Adds a string value to the builder and returns its Ptr.
+    pub fn add_string(&mut self, v: &str) -> Ptr {
+        let offset = self.buffer.len();
+        self.buffer.put_u32_ne(v.len() as u32);
         self.buffer.put_slice(v.as_bytes());
-        id
+        Ptr {
+            offset,
+            entry: Entry::string(),
+        }
     }
 
-    /// Adds an array value to the builder and returns its ID.
-    pub fn add_array(&mut self, values: &[Id]) -> Id {
-        let id = self.next_id();
-        self.buffer.reserve(1 + Id::SIZE * (1 + values.len()));
-        self.buffer.push(TAG_ARRAY);
-        self.buffer.put_u32_le(values.len() as u32);
+    /// Adds an array value to the builder and returns its Ptr.
+    pub fn add_array(&mut self, start: usize, values: &[Ptr]) -> Ptr {
+        let offset = self.buffer.len();
+        let payload_size = offset - start;
+        self.buffer.reserve(4 + 4 + 4 * values.len());
+        self.buffer.put_u32_ne(values.len() as u32);
+        self.buffer.put_u32_ne(payload_size as u32);
         for value in values {
-            self.buffer.put_u32_le(value.0);
+            self.buffer.put_u32_ne(value.to_entry(offset));
         }
-        id
+        Ptr {
+            offset,
+            entry: Entry::array(),
+        }
     }
 
-    /// Adds an object value to the builder and returns its ID.
-    pub fn add_object<'b>(&mut self, kvs: impl Iterator<Item = (&'b str, Id)>) -> Id {
-        // add keys
-        let mut last_key = None;
-        let mut ids = Vec::with_capacity(kvs.size_hint().0);
-        for (k, v) in kvs {
-            assert!(Some(k) > last_key, "keys must be ordered");
-            last_key = Some(k);
-            let kid = self.add_string(k);
-            ids.push((kid, v));
+    /// Adds an object value to the builder and returns its Ptr.
+    pub fn add_object<'b>(
+        &mut self,
+        start: usize,
+        kvs: impl ExactSizeIterator<Item = (Ptr, Ptr)>,
+    ) -> Ptr {
+        let offset = self.buffer.len();
+        let payload_size = offset - start;
+        self.buffer.reserve(4 + 4 + 8 * kvs.len());
+        self.buffer.put_u32_ne(kvs.len() as u32);
+        self.buffer.put_u32_ne(payload_size as u32);
+        for (kptr, vptr) in kvs {
+            self.buffer.put_u32_ne(kptr.to_entry(offset));
+            self.buffer.put_u32_ne(vptr.to_entry(offset));
         }
-        self.add_object_ids(&ids)
+        // TODO: sort entries by key
+        Ptr {
+            offset,
+            entry: Entry::object(),
+        }
     }
 
-    /// Adds an object value to the builder and returns its ID.
-    pub(crate) fn add_object_ids<'b>(&mut self, kvs: &[(Id, Id)]) -> Id {
-        // add object
-        let id = self.next_id();
-        self.buffer.reserve(1 + Id::SIZE * (1 + kvs.len() * 2));
-        self.buffer.push(TAG_OBJECT);
-        self.buffer.put_u32_le(kvs.len() as u32);
-        for (k, v) in kvs {
-            self.buffer.put_u32_le(k.0);
-            self.buffer.put_u32_le(v.0);
-        }
-        id
-    }
-
-    /// Adds a value to the builder and returns its ID.
-    pub fn add_value_ref(&mut self, value: ValueRef<'_>) -> Id {
+    /// Adds a value to the builder and returns its Ptr.
+    pub fn add_value_ref(&mut self, value: ValueRef<'_>) -> Ptr {
         match value {
             ValueRef::Null => self.add_null(),
             ValueRef::Bool(b) => self.add_bool(b),
@@ -136,34 +129,42 @@ impl Builder {
             }
             ValueRef::String(s) => self.add_string(s),
             ValueRef::Array(a) => {
-                let ids = a.iter().map(|v| self.add_value_ref(v)).collect::<Vec<_>>();
-                self.add_array(&ids)
+                let offset = self.buffer.len() + a.elements_len();
+                self.buffer.extend_from_slice(a.as_slice());
+                Ptr {
+                    offset,
+                    entry: Entry::array(),
+                }
             }
             ValueRef::Object(o) => {
-                let kvs = o
-                    .iter()
-                    .map(|(k, v)| (k, self.add_value_ref(v)))
-                    .collect::<Vec<_>>();
-                self.add_object(kvs.into_iter())
+                let offset = self.buffer.len() + o.elements_len();
+                self.buffer.extend_from_slice(o.as_slice());
+                Ptr {
+                    offset,
+                    entry: Entry::object(),
+                }
             }
         }
     }
 
-    /// Finishes building and returns the [`Value`].
-    pub fn finish(self, id: Id) -> Value {
-        Value {
-            buffer: self.buffer.into(),
-            id,
-        }
+    pub fn len(&self) -> usize {
+        self.buffer.len()
     }
 
-    /// Finishes building and returns the [`Array`].
-    pub fn finish_array(mut self, ids: &[Id]) -> Array {
-        let id = self.add_array(ids);
-        Array {
-            buffer: self.buffer.into(),
-            id,
-            len: ids.len() as u32,
-        }
+    /// Finishes building.
+    pub fn finish(self, ptr: Ptr) {
+        let offset = self.buffer.len();
+        self.buffer.put_u32_ne(ptr.to_entry(offset));
+    }
+}
+
+pub struct Ptr {
+    offset: usize,
+    entry: Entry,
+}
+
+impl Ptr {
+    fn to_entry(&self, self_offset: usize) -> u32 {
+        self.entry.with_offset(self_offset - self.offset).as_u32()
     }
 }

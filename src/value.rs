@@ -2,16 +2,19 @@ use super::*;
 use std::{fmt, str::FromStr};
 
 /// An owned JSON value.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Value {
     pub(crate) buffer: Box<[u8]>,
-    pub(crate) id: Id,
 }
 
 impl Value {
     /// Returns the value as a reference.
     pub fn as_ref(&self) -> ValueRef<'_> {
-        ValueRef::from(&self.buffer, self.id)
+        unsafe {
+            let base = self.buffer.as_ptr().add(self.buffer.len() - 4);
+            let entry = (base as *const Entry).read();
+            ValueRef::from_raw(base, entry)
+        }
     }
 
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
@@ -49,11 +52,6 @@ impl Value {
         self.as_ref().as_object()
     }
 
-    /// Dumps the internal buffer as a string.
-    pub fn dump(&self) -> String {
-        dump(&self.buffer)
-    }
-
     /// Returns the capacity of the internal buffer, in bytes.
     pub fn capacity(&self) -> usize {
         self.buffer.len()
@@ -64,6 +62,16 @@ impl Value {
     /// and a usize index can be used to access an element of an array.
     pub fn get(&self, index: impl Index) -> Option<ValueRef<'_>> {
         index.index_into(&self.as_ref())
+    }
+
+    fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder) -> Ptr) -> Self {
+        let mut buffer = Vec::with_capacity(capacity);
+        let mut builder = Builder::new(&mut buffer);
+        let ptr = f(&mut builder);
+        builder.finish(ptr);
+        Self {
+            buffer: buffer.into_boxed_slice(),
+        }
     }
 }
 
@@ -88,15 +96,13 @@ impl From<serde_json::Value> for Value {
 
 impl From<&serde_json::Value> for Value {
     fn from(value: &serde_json::Value) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_serde_value(&value);
-        builder.finish(id)
+        Self::from_builder(0, |b| b.add_serde_value(value))
     }
 }
 
-impl Builder {
+impl Builder<'_> {
     /// Adds a serde `Value` recursively to the builder and returns its ID.
-    fn add_serde_value(&mut self, value: &serde_json::Value) -> Id {
+    fn add_serde_value(&mut self, value: &serde_json::Value) -> Ptr {
         match value {
             serde_json::Value::Null => self.add_null(),
             serde_json::Value::Bool(b) => self.add_bool(*b),
@@ -113,18 +119,20 @@ impl Builder {
             }
             serde_json::Value::String(s) => self.add_string(s),
             serde_json::Value::Array(a) => {
+                let start = self.len();
                 let ids = a
                     .iter()
                     .map(|v| self.add_serde_value(v))
-                    .collect::<Vec<Id>>();
-                self.add_array(&ids)
+                    .collect::<Vec<Ptr>>();
+                self.add_array(start, &ids)
             }
             serde_json::Value::Object(o) => {
+                let start = self.len();
                 let kvs = o
                     .iter()
-                    .map(|(k, v)| (k.as_str(), self.add_serde_value(v)))
-                    .collect::<Vec<(&str, Id)>>();
-                self.add_object(kvs.into_iter())
+                    .map(|(k, v)| (self.add_string(k), self.add_serde_value(v)))
+                    .collect::<Vec<(Ptr, Ptr)>>();
+                self.add_object(start, kvs.into_iter())
             }
         }
     }
@@ -136,66 +144,56 @@ impl FromStr for Value {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use ::serde::de::DeserializeSeed;
 
-        let mut builder = Builder::new();
+        let mut buffer = Vec::with_capacity(s.len());
+        let mut builder = Builder::new(&mut buffer);
         let mut deserializer = serde_json::Deserializer::from_str(s);
         let id = builder.deserialize(&mut deserializer)?;
-        Ok(builder.finish(id))
+        builder.finish(id);
+        Ok(Value {
+            buffer: buffer.into_boxed_slice(),
+        })
     }
 }
 
 impl From<()> for Value {
     fn from(_: ()) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_null();
-        builder.finish(id)
+        Self::from_builder(4, |b| b.add_null())
     }
 }
 
 impl From<bool> for Value {
-    fn from(b: bool) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_bool(b);
-        builder.finish(id)
+    fn from(v: bool) -> Self {
+        Self::from_builder(4, |b| b.add_bool(v))
     }
 }
 
 impl From<u64> for Value {
     fn from(v: u64) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_u64(v);
-        builder.finish(id)
+        Self::from_builder(1 + 8 + 4, |b| b.add_u64(v))
     }
 }
 
 impl From<i64> for Value {
     fn from(v: i64) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_i64(v);
-        builder.finish(id)
+        Self::from_builder(1 + 8 + 4, |b| b.add_i64(v))
     }
 }
 
 impl From<f64> for Value {
     fn from(v: f64) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_f64(v);
-        builder.finish(id)
+        Self::from_builder(1 + 8 + 4, |b| b.add_f64(v))
     }
 }
 
 impl From<&str> for Value {
     fn from(s: &str) -> Self {
-        let mut builder = Builder::default();
-        let id = builder.add_string(s);
-        builder.finish(id)
+        Self::from_builder(s.len() + 8, |b| b.add_string(s))
     }
 }
 
 impl From<ValueRef<'_>> for Value {
     fn from(v: ValueRef<'_>) -> Self {
-        let mut builder = Builder::with_capacity(v.capacity());
-        let id = builder.add_value_ref(v);
-        builder.finish(id)
+        Self::from_builder(v.capacity() + 4, |b| b.add_value_ref(v))
     }
 }
 
@@ -216,42 +214,6 @@ mod tests {
         }"#
         .parse()
         .unwrap();
-        let value = Value::from(&serde_value);
-        value.dump();
-    }
-
-    #[test]
-    fn dump() {
-        let value: Value = r#"
-        {
-            "null": null,
-            "bool": true,
-            "string": "hello",
-            "integer": 43,
-            "float": 178.5,
-            "array": ["hello", "world"]
-        }"#
-        .parse()
-        .unwrap();
-        // println!("{}", value.dump());
-        assert_eq!(
-            value.dump().trim(),
-            r#"
-#0: "null"
-#9: "bool"
-#18: "string"
-#29: "hello"
-#39: "integer"
-#51: 43
-#60: "float"
-#70: 178.5
-#79: "array"
-#89: "hello"
-#99: "world"
-#109: [#89, #99]
-#122: {#0:null, #9:true, #18:#29, #39:#51, #60:#70, #79:#109}
-"#
-            .trim()
-        );
+        let _value = Value::from(&serde_value);
     }
 }

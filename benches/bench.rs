@@ -116,26 +116,26 @@ fn bench_index_array(c: &mut Criterion) {
     }"#;
     let n = 1024;
 
-    let array = {
-        let v: flat_json::Value = json.parse().unwrap();
-        let mut builder = flat_json::Builder::default();
-        let ids = (0..n)
-            .map(|_| builder.add_value_ref(v.as_ref()))
-            .collect::<Vec<_>>();
-        builder.finish_array(&ids)
-    };
-    c.bench_function("[json['key'] for json in array]/this", |b| {
-        b.iter(|| {
-            let mut builder = flat_json::Builder::default();
-            let mut ids = Vec::with_capacity(array.len());
-            for value in array.iter() {
-                let new_value = value.as_object().unwrap().get("name").unwrap();
-                let id = builder.add_value_ref(new_value);
-                ids.push(id);
-            }
-            builder.finish_array(&ids)
-        })
-    });
+    // let array = {
+    //     let v: flat_json::Value = json.parse().unwrap();
+    //     let mut builder = flat_json::Builder::default();
+    //     let ids = (0..n)
+    //         .map(|_| builder.add_value_ref(v.as_ref()))
+    //         .collect::<Vec<_>>();
+    //     builder.finish_array(&ids)
+    // };
+    // c.bench_function("[json['key'] for json in array]/this", |b| {
+    //     b.iter(|| {
+    //         let mut builder = flat_json::Builder::default();
+    //         let mut ids = Vec::with_capacity(array.len());
+    //         for value in array.iter() {
+    //             let new_value = value.as_object().unwrap().get("name").unwrap();
+    //             let id = builder.add_value_ref(new_value);
+    //             ids.push(id);
+    //         }
+    //         builder.finish_array(&ids)
+    //     })
+    // });
 
     let v: serde_json::Value = json.parse().unwrap();
     let array = vec![v; n];
