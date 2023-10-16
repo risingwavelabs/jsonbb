@@ -10,11 +10,11 @@ pub struct Value {
 impl Value {
     /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
-        unsafe { ValueRef::from_slice(&self.buffer) }
+        unsafe { ValueRef::from_bytes(&self.buffer) }
     }
 
     /// Returns the value as bytes.
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         &self.buffer
     }
 
@@ -269,7 +269,7 @@ impl From<&str> for Value {
 
 impl From<ValueRef<'_>> for Value {
     fn from(v: ValueRef<'_>) -> Self {
-        Self::from_builder(v.capacity() + 4, |b| b.add_value_ref(v))
+        Self::from_builder(v.capacity() + 4, |b| b.add_value(v))
     }
 }
 

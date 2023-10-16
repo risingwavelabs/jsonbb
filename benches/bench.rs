@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use jsonbb::ValueRef;
+use simd_json::ValueAccess;
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
@@ -46,6 +47,10 @@ fn bench_to_string(c: &mut Criterion) {
         c.bench_function(&format!("{filename} to_string/jsonb"), |b| {
             b.iter(|| jsonb::to_string(&v))
         });
+        let v = simd_json::to_owned_value(&mut Vec::from(json.clone())).unwrap();
+        c.bench_function(&format!("{filename} to_string/simd-json"), |b| {
+            b.iter(|| simd_json::to_string(&v).unwrap())
+        });
     }
 }
 
@@ -58,6 +63,9 @@ fn bench_from(c: &mut Criterion) {
     c.bench_function("from_string/jsonb", |b| {
         b.iter(|| jsonb::Value::from(s).to_vec())
     });
+    c.bench_function("from_string/simd-json", |b| {
+        b.iter(|| simd_json::OwnedValue::from(s))
+    });
 
     let s = 123456789012345678_i64;
     c.bench_function("from_i64/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
@@ -67,6 +75,9 @@ fn bench_from(c: &mut Criterion) {
     c.bench_function("from_i64/jsonb", |b| {
         b.iter(|| jsonb::Value::from(s).to_vec())
     });
+    c.bench_function("from_i64/simd-json", |b| {
+        b.iter(|| simd_json::OwnedValue::from(s))
+    });
 
     let s = 1234567890.1234567890;
     c.bench_function("from_f64/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
@@ -75,6 +86,9 @@ fn bench_from(c: &mut Criterion) {
     });
     c.bench_function("from_f64/jsonb", |b| {
         b.iter(|| jsonb::Value::from(s).to_vec())
+    });
+    c.bench_function("from_f64/simd-json", |b| {
+        b.iter(|| simd_json::OwnedValue::from(s))
     });
 }
 
@@ -92,6 +106,10 @@ fn bench_index(c: &mut Criterion) {
     c.bench_function("json[i]/jsonb", |b| {
         b.iter(|| jsonb::get_by_index(&v, 2).unwrap())
     });
+    let v = simd_json::to_owned_value(&mut Vec::from(json)).unwrap();
+    c.bench_function("json[i]/simd-json", |b| {
+        b.iter(|| v.get_idx(2).unwrap().to_owned())
+    });
 
     let json = r#"{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": {"a":"foo"}}"#;
     let v: jsonbb::Value = json.parse().unwrap();
@@ -105,6 +123,10 @@ fn bench_index(c: &mut Criterion) {
     let v = jsonb::parse_value(json.as_bytes()).unwrap().to_vec();
     c.bench_function("json['key']/jsonb", |b| {
         b.iter(|| jsonb::get_by_name(&v, "f", false).unwrap())
+    });
+    let v = simd_json::to_owned_value(&mut Vec::from(json)).unwrap();
+    c.bench_function("json['key']/simd-json", |b| {
+        b.iter(|| v.get("f").unwrap().to_owned())
     });
 }
 
@@ -125,7 +147,7 @@ fn bench_index_array(c: &mut Criterion) {
     let mut index = vec![];
     for _ in 0..n {
         let start = array.len();
-        array.extend_from_slice(v.as_slice());
+        array.extend_from_slice(v.as_bytes());
         let end = array.len();
         index.push(start..end);
     }
@@ -133,10 +155,10 @@ fn bench_index_array(c: &mut Criterion) {
         b.iter(|| {
             let mut buffer = Vec::with_capacity(array.len());
             for range in index.iter() {
-                let value = unsafe { ValueRef::from_slice(&array[range.clone()]) };
+                let value = unsafe { ValueRef::from_bytes(&array[range.clone()]) };
                 let mut builder = jsonbb::Builder::new(&mut buffer);
                 let new_value = value.get("name").unwrap();
-                builder.add_value_ref(new_value);
+                builder.add_value(new_value);
                 builder.finish();
             }
         })
@@ -196,6 +218,10 @@ fn bench_path(c: &mut Criterion) {
     c.bench_function("json[path]/jsonb", |b| {
         let path = jsonb::jsonpath::parse_json_path("{a,b,1}".as_bytes()).unwrap();
         b.iter(|| jsonb::get_by_path(&v, path.clone(), &mut vec![], &mut vec![]))
+    });
+    let v = simd_json::to_owned_value(&mut Vec::from(json)).unwrap();
+    c.bench_function("json[path]/simd-json", |b| {
+        b.iter(|| v["a"]["b"][1].to_owned())
     });
 }
 
@@ -284,6 +310,24 @@ fn bench_file_index(c: &mut Criterion) {
             };
             if let Some(expected) = test_suite.expected {
                 assert_eq!(jsonb::as_str(&bench()), Some(expected.into()));
+            }
+            b.iter(bench);
+        });
+
+        let value = simd_json::to_owned_value(&mut bytes.clone()).unwrap();
+        c.bench_function(&format!("{suite_name} index/simd-json"), |b| {
+            let bench = || {
+                let mut v = &value;
+                for path in test_suite.paths {
+                    v = v.get(*path).unwrap();
+                }
+                v.to_owned()
+            };
+            if let Some(expected) = test_suite.expected {
+                match bench() {
+                    simd_json::OwnedValue::String(s) => assert_eq!(s, expected),
+                    _ => panic!("expected string"),
+                }
             }
             b.iter(bench);
         });

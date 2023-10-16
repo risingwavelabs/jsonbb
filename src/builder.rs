@@ -146,8 +146,8 @@ impl<'a> Builder<'a> {
         });
     }
 
-    /// Adds a value to the builder.
-    pub fn add_value_ref(&mut self, value: ValueRef<'_>) {
+    /// Adds a JSON value to the builder.
+    pub fn add_value(&mut self, value: ValueRef<'_>) {
         match value {
             ValueRef::Null => self.add_null(),
             ValueRef::Bool(b) => self.add_bool(b),

@@ -21,12 +21,12 @@ pub enum ValueRef<'a> {
 }
 
 impl<'a> ValueRef<'a> {
-    /// Creates a `ValueRef` from bytes.
+    /// Creates a `ValueRef` from a byte slice.
     ///
     /// # Safety
     ///
     /// The bytes must be a valid JSON value created by `Builder`.
-    pub unsafe fn from_slice(bytes: &[u8]) -> ValueRef<'_> {
+    pub unsafe fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
         let base = bytes.as_ptr().add(bytes.len() - 4);
         let entry = (base as *const Entry).read();
         ValueRef::from_raw(base, entry)
