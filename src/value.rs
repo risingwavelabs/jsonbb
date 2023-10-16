@@ -23,7 +23,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from(());
+    /// let value = jsonbb::Value::from(());
     /// assert_eq!(value.as_null(), Some(()));
     /// ```
     pub fn as_null(&self) -> Option<()> {
@@ -35,7 +35,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from(true);
+    /// let value = jsonbb::Value::from(true);
     /// assert_eq!(value.as_bool(), Some(true));
     /// ```
     pub fn as_bool(&self) -> Option<bool> {
@@ -47,7 +47,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from(1i64);
+    /// let value = jsonbb::Value::from(1i64);
     /// assert_eq!(value.as_i64(), Some(1));
     /// ```
     pub fn as_i64(&self) -> Option<i64> {
@@ -59,7 +59,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from(1i64);
+    /// let value = jsonbb::Value::from(1i64);
     /// assert_eq!(value.as_u64(), Some(1));
     /// ```
     pub fn as_u64(&self) -> Option<u64> {
@@ -71,7 +71,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from(3.14_f64);
+    /// let value = jsonbb::Value::from(3.14_f64);
     /// assert_eq!(value.as_f64(), Some(3.14));
     /// ```
     pub fn as_f64(&self) -> Option<f64> {
@@ -83,7 +83,7 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let value = flat_json::Value::from("json");
+    /// let value = jsonbb::Value::from("json");
     /// assert_eq!(value.as_str(), Some("json"));
     /// ```
     pub fn as_str(&self) -> Option<&str> {
@@ -112,12 +112,12 @@ impl Value {
     /// # Example
     ///
     /// ```
-    /// let object: flat_json::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// let object: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
     /// assert_eq!(object.get("a").unwrap().to_string(), "1");
     /// assert!(object.get("c").is_none());
     /// assert!(object.get(0).is_none());
     ///
-    /// let array: flat_json::Value = r#"["a", "b"]"#.parse().unwrap();
+    /// let array: jsonbb::Value = r#"["a", "b"]"#.parse().unwrap();
     /// assert_eq!(array.get(0).unwrap().to_string(), "\"a\"");
     /// assert!(array.get(2).is_none());
     /// assert!(array.get("a").is_none());
@@ -153,8 +153,8 @@ impl fmt::Display for Value {
 /// # Example
 ///
 /// ```
-/// let a: flat_json::Value = r#"{"a": 1.0, "b": 2}"#.parse().unwrap();
-/// let b: flat_json::Value = r#"{"b": 2, "a": 1.00}"#.parse().unwrap();
+/// let a: jsonbb::Value = r#"{"a": 1.0, "b": 2}"#.parse().unwrap();
+/// let b: jsonbb::Value = r#"{"b": 2, "a": 1.00}"#.parse().unwrap();
 /// assert_eq!(a, b);
 /// ```
 impl PartialEq for Value {

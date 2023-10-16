@@ -182,10 +182,6 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
-
     /// Finishes building.
     pub fn finish(mut self) {
         let offset = self.buffer.len();

@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use flat_json::ValueRef;
+use jsonbb::ValueRef;
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
-        c.bench_function(&format!("{filename} parse/this"), |b| {
-            b.iter(|| json.parse::<flat_json::Value>().unwrap())
+        c.bench_function(&format!("{filename} parse/jsonbb"), |b| {
+            b.iter(|| json.parse::<jsonbb::Value>().unwrap())
         });
         c.bench_function(&format!("{filename} parse/serde_json"), |b| {
             b.iter(|| json.parse::<serde_json::Value>().unwrap())
@@ -22,8 +22,8 @@ fn bench_parse(c: &mut Criterion) {
 
         println!("{filename} size/text:\t{}", json.len());
         println!(
-            "{filename} size/this:\t{}",
-            json.parse::<flat_json::Value>().unwrap().capacity()
+            "{filename} size/jsonbb:\t{}",
+            json.parse::<jsonbb::Value>().unwrap().capacity()
         );
         println!(
             "{filename} size/jsonb:\t{}",
@@ -34,8 +34,8 @@ fn bench_parse(c: &mut Criterion) {
 
 fn bench_to_string(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
-        let v: flat_json::Value = json.parse().unwrap();
-        c.bench_function(&format!("{filename} to_string/this"), |b| {
+        let v: jsonbb::Value = json.parse().unwrap();
+        c.bench_function(&format!("{filename} to_string/jsonbb"), |b| {
             b.iter(|| v.to_string())
         });
         let v: serde_json::Value = json.parse().unwrap();
@@ -51,7 +51,7 @@ fn bench_to_string(c: &mut Criterion) {
 
 fn bench_from(c: &mut Criterion) {
     let s = "1234567890";
-    c.bench_function("from_string/this", |b| b.iter(|| flat_json::Value::from(s)));
+    c.bench_function("from_string/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
     c.bench_function("from_string/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
     });
@@ -60,7 +60,7 @@ fn bench_from(c: &mut Criterion) {
     });
 
     let s = 123456789012345678_i64;
-    c.bench_function("from_i64/this", |b| b.iter(|| flat_json::Value::from(s)));
+    c.bench_function("from_i64/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
     c.bench_function("from_i64/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
     });
@@ -69,7 +69,7 @@ fn bench_from(c: &mut Criterion) {
     });
 
     let s = 1234567890.1234567890;
-    c.bench_function("from_f64/this", |b| b.iter(|| flat_json::Value::from(s)));
+    c.bench_function("from_f64/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
     c.bench_function("from_f64/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
     });
@@ -80,8 +80,10 @@ fn bench_from(c: &mut Criterion) {
 
 fn bench_index(c: &mut Criterion) {
     let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
-    let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("json[i]/this", |b| b.iter(|| v.get(2).unwrap().to_owned()));
+    let v: jsonbb::Value = json.parse().unwrap();
+    c.bench_function("json[i]/jsonbb", |b| {
+        b.iter(|| v.get(2).unwrap().to_owned())
+    });
     let v: serde_json::Value = json.parse().unwrap();
     c.bench_function("json[i]/serde_json", |b| {
         b.iter(|| v.get(2).unwrap().to_owned())
@@ -92,8 +94,8 @@ fn bench_index(c: &mut Criterion) {
     });
 
     let json = r#"{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": {"a":"foo"}}"#;
-    let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("json['key']/this", |b| {
+    let v: jsonbb::Value = json.parse().unwrap();
+    c.bench_function("json['key']/jsonbb", |b| {
         b.iter(|| v.get("f").unwrap().to_owned())
     });
     let v: serde_json::Value = json.parse().unwrap();
@@ -118,7 +120,7 @@ fn bench_index_array(c: &mut Criterion) {
     }"#;
     let n = 1024;
 
-    let v: flat_json::Value = json.parse().unwrap();
+    let v: jsonbb::Value = json.parse().unwrap();
     let mut array = vec![];
     let mut index = vec![];
     for _ in 0..n {
@@ -127,12 +129,12 @@ fn bench_index_array(c: &mut Criterion) {
         let end = array.len();
         index.push(start..end);
     }
-    c.bench_function("[json['key'] for json in array]/this", |b| {
+    c.bench_function("[json['key'] for json in array]/jsonbb", |b| {
         b.iter(|| {
             let mut buffer = Vec::with_capacity(array.len());
             for range in index.iter() {
                 let value = unsafe { ValueRef::from_slice(&array[range.clone()]) };
-                let mut builder = flat_json::Builder::new(&mut buffer);
+                let mut builder = jsonbb::Builder::new(&mut buffer);
                 let new_value = value.get("name").unwrap();
                 builder.add_value_ref(new_value);
                 builder.finish();
@@ -174,8 +176,8 @@ fn bench_index_array(c: &mut Criterion) {
 
 fn bench_path(c: &mut Criterion) {
     let json = r#"{"a": {"b": ["foo","bar"]}}"#;
-    let v: flat_json::Value = json.parse().unwrap();
-    c.bench_function("json[path]/this", |b| {
+    let v: jsonbb::Value = json.parse().unwrap();
+    c.bench_function("json[path]/jsonbb", |b| {
         b.iter(|| {
             v.get("a")
                 .unwrap()
@@ -236,8 +238,8 @@ fn bench_file_index(c: &mut Criterion) {
         let suite_name = format!("{}->{}", test_suite.file, test_suite.paths.join("->"));
         let bytes = std::fs::read(&format!("./benches/data/{}.json", test_suite.file)).unwrap();
 
-        let value: flat_json::Value = std::str::from_utf8(&bytes).unwrap().parse().unwrap();
-        c.bench_function(&format!("{suite_name} index/this"), |b| {
+        let value: jsonbb::Value = std::str::from_utf8(&bytes).unwrap().parse().unwrap();
+        c.bench_function(&format!("{suite_name} index/jsonbb"), |b| {
             let bench = || {
                 let mut v = value.as_ref();
                 for path in test_suite.paths {

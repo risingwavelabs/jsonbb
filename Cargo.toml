@@ -1,5 +1,5 @@
 [package]
-name = "flat-json"
+name = "jsonbb"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,7 +14,7 @@ smallvec = "1"
 [dev-dependencies]
 criterion = "0.5"
 jsonb = "0.3"
-simd-json = "0.11"
+simd-json = "0.12"
 
 [[bench]]
 name = "bench"
