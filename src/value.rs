@@ -8,7 +8,7 @@ pub struct Value {
 }
 
 impl Value {
-    /// Returns the value as a reference.
+    /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
         unsafe {
             let base = self.buffer.as_ptr().add(self.buffer.len() - 4);
@@ -18,26 +18,73 @@ impl Value {
     }
 
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from(());
+    /// assert_eq!(value.as_null(), Some(()));
+    /// ```
     pub fn as_null(&self) -> Option<()> {
         self.as_ref().as_null()
     }
 
     /// If the value is a boolean, returns the associated bool. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from(true);
+    /// assert_eq!(value.as_bool(), Some(true));
+    /// ```
     pub fn as_bool(&self) -> Option<bool> {
         self.as_ref().as_bool()
     }
 
     /// If the value is an integer, returns the associated i64. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from(1i64);
+    /// assert_eq!(value.as_i64(), Some(1));
+    /// ```
     pub fn as_i64(&self) -> Option<i64> {
         self.as_ref().as_i64()
     }
 
+    /// If the value is an integer, returns the associated u64. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from(1i64);
+    /// assert_eq!(value.as_u64(), Some(1));
+    /// ```
+    pub fn as_u64(&self) -> Option<u64> {
+        self.as_ref().as_u64()
+    }
+
     /// If the value is a float, returns the associated f64. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from(3.14_f64);
+    /// assert_eq!(value.as_f64(), Some(3.14));
+    /// ```
     pub fn as_f64(&self) -> Option<f64> {
         self.as_ref().as_f64()
     }
 
     /// If the value is a string, returns the associated str. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value = flat_json::Value::from("json");
+    /// assert_eq!(value.as_str(), Some("json"));
+    /// ```
     pub fn as_str(&self) -> Option<&str> {
         self.as_ref().as_str()
     }
@@ -60,15 +107,29 @@ impl Value {
     /// Index into a JSON array or object.
     /// A string index can be used to access a value in an object,
     /// and a usize index can be used to access an element of an array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let object: flat_json::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// assert_eq!(object.get("a").unwrap().to_string(), "1");
+    /// assert!(object.get("c").is_none());
+    /// assert!(object.get(0).is_none());
+    ///
+    /// let array: flat_json::Value = r#"["a", "b"]"#.parse().unwrap();
+    /// assert_eq!(array.get(0).unwrap().to_string(), "\"a\"");
+    /// assert!(array.get(2).is_none());
+    /// assert!(array.get("a").is_none());
+    /// ```
     pub fn get(&self, index: impl Index) -> Option<ValueRef<'_>> {
         index.index_into(&self.as_ref())
     }
 
-    fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder) -> Ptr) -> Self {
+    fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder)) -> Self {
         let mut buffer = Vec::with_capacity(capacity);
         let mut builder = Builder::new(&mut buffer);
-        let ptr = f(&mut builder);
-        builder.finish(ptr);
+        f(&mut builder);
+        builder.finish();
         Self {
             buffer: buffer.into_boxed_slice(),
         }
@@ -101,8 +162,8 @@ impl From<&serde_json::Value> for Value {
 }
 
 impl Builder<'_> {
-    /// Adds a serde `Value` recursively to the builder and returns its ID.
-    fn add_serde_value(&mut self, value: &serde_json::Value) -> Ptr {
+    /// Adds a serde `Value` recursively to the builder and returns its ptr.
+    fn add_serde_value(&mut self, value: &serde_json::Value) {
         match value {
             serde_json::Value::Null => self.add_null(),
             serde_json::Value::Bool(b) => self.add_bool(*b),
@@ -119,20 +180,19 @@ impl Builder<'_> {
             }
             serde_json::Value::String(s) => self.add_string(s),
             serde_json::Value::Array(a) => {
-                let start = self.len();
-                let ids = a
-                    .iter()
-                    .map(|v| self.add_serde_value(v))
-                    .collect::<Vec<Ptr>>();
-                self.add_array(start, &ids)
+                self.begin_array();
+                for v in a.iter() {
+                    self.add_serde_value(v);
+                }
+                self.finish_array();
             }
             serde_json::Value::Object(o) => {
-                let start = self.len();
-                let kvs = o
-                    .iter()
-                    .map(|(k, v)| (self.add_string(k), self.add_serde_value(v)))
-                    .collect::<Vec<(Ptr, Ptr)>>();
-                self.add_object(start, kvs.into_iter())
+                self.begin_object();
+                for (k, v) in o.iter() {
+                    self.add_string(k);
+                    self.add_serde_value(v);
+                }
+                self.finish_object()
             }
         }
     }
@@ -147,8 +207,8 @@ impl FromStr for Value {
         let mut buffer = Vec::with_capacity(s.len());
         let mut builder = Builder::new(&mut buffer);
         let mut deserializer = serde_json::Deserializer::from_str(s);
-        let id = builder.deserialize(&mut deserializer)?;
-        builder.finish(id);
+        builder.deserialize(&mut deserializer)?;
+        builder.finish();
         Ok(Value {
             buffer: buffer.into_boxed_slice(),
         })

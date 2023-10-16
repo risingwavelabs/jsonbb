@@ -170,7 +170,12 @@ impl fmt::Display for ValueRef<'_> {
 /// A reference to a JSON array.
 #[derive(Clone, Copy)]
 pub struct ArrayRef<'a> {
-    // len (u32) + start_offset (u32) + [eptr] x len
+    // # layout
+    //      v----------------------\
+    // | elements | len | size | [eptr] x len |
+    // |   size   |  4  |  4   |   4 x len    |
+    // |<------------ as_slice -------------->|
+    //            ^ptr
     ptr: *const u8,
     _mark: PhantomData<&'a u8>,
 }
@@ -244,7 +249,12 @@ impl fmt::Display for ArrayRef<'_> {
 /// A reference to a JSON object.
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
-    // n (u32) + start_offset (u32) + [kptr, vptr] x n
+    // # layout
+    //      v-v--------------------\-----\
+    // | elements | len | size | [kptr, vptr] x len |
+    // |   size   |  4  |  4   |     4 x 2 x len    |
+    // |<--------------- as_slice ----------------->|
+    //            ^ptr
     ptr: *const u8,
     _mark: PhantomData<&'a u8>,
 }
@@ -284,12 +294,12 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's keys.
-    pub fn keys(&self) -> impl ExactSizeIterator<Item = &'a str> + 'a {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &'a str> {
         self.iter().map(|(k, _)| k)
     }
 
     /// Returns an iterator over the object's values.
-    pub fn values(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> + 'a {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         self.iter().map(|(_, v)| v)
     }
 
