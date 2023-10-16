@@ -21,6 +21,17 @@ pub enum ValueRef<'a> {
 }
 
 impl<'a> ValueRef<'a> {
+    /// Creates a `ValueRef` from bytes.
+    ///
+    /// # Safety
+    ///
+    /// The bytes must be a valid JSON value created by `Builder`.
+    pub unsafe fn from_slice(bytes: &[u8]) -> ValueRef<'_> {
+        let base = bytes.as_ptr().add(bytes.len() - 4);
+        let entry = (base as *const Entry).read();
+        ValueRef::from_raw(base, entry)
+    }
+
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
     pub fn as_null(self) -> Option<()> {
         match self {

@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use flat_json::ValueRef;
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
@@ -116,26 +117,27 @@ fn bench_index_array(c: &mut Criterion) {
     }"#;
     let n = 1024;
 
-    // let array = {
-    //     let v: flat_json::Value = json.parse().unwrap();
-    //     let mut builder = flat_json::Builder::default();
-    //     let ids = (0..n)
-    //         .map(|_| builder.add_value_ref(v.as_ref()))
-    //         .collect::<Vec<_>>();
-    //     builder.finish_array(&ids)
-    // };
-    // c.bench_function("[json['key'] for json in array]/this", |b| {
-    //     b.iter(|| {
-    //         let mut builder = flat_json::Builder::default();
-    //         let mut ids = Vec::with_capacity(array.len());
-    //         for value in array.iter() {
-    //             let new_value = value.as_object().unwrap().get("name").unwrap();
-    //             let id = builder.add_value_ref(new_value);
-    //             ids.push(id);
-    //         }
-    //         builder.finish_array(&ids)
-    //     })
-    // });
+    let v: flat_json::Value = json.parse().unwrap();
+    let mut array = vec![];
+    let mut index = vec![];
+    for _ in 0..n {
+        let start = array.len();
+        array.extend_from_slice(v.as_slice());
+        let end = array.len();
+        index.push(start..end);
+    }
+    c.bench_function("[json['key'] for json in array]/this", |b| {
+        b.iter(|| {
+            let mut buffer = Vec::with_capacity(array.len());
+            for range in index.iter() {
+                let value = unsafe { ValueRef::from_slice(&array[range.clone()]) };
+                let mut builder = flat_json::Builder::new(&mut buffer);
+                let new_value = value.get("name").unwrap();
+                builder.add_value_ref(new_value);
+                builder.finish();
+            }
+        })
+    });
 
     let v: serde_json::Value = json.parse().unwrap();
     let array = vec![v; n];
@@ -159,7 +161,7 @@ fn bench_index_array(c: &mut Criterion) {
     }
     c.bench_function("[json['key'] for json in array]/jsonb", |b| {
         b.iter(|| {
-            let mut new_array = vec![];
+            let mut new_array = Vec::with_capacity(array.len());
             for range in index.iter() {
                 let new_value = jsonb::get_by_name(&array[range.clone()], "name", false).unwrap();
                 new_array.extend_from_slice(&new_value);

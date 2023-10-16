@@ -10,11 +10,12 @@ pub struct Value {
 impl Value {
     /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
-        unsafe {
-            let base = self.buffer.as_ptr().add(self.buffer.len() - 4);
-            let entry = (base as *const Entry).read();
-            ValueRef::from_raw(base, entry)
-        }
+        unsafe { ValueRef::from_slice(&self.buffer) }
+    }
+
+    /// Returns the value as bytes.
+    pub fn as_slice(&self) -> &[u8] {
+        &self.buffer
     }
 
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
