@@ -144,7 +144,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// Returns the capacity to store this value, in bytes.
-    pub(crate) fn capacity(&self) -> usize {
+    pub(crate) fn capacity(self) -> usize {
         match self {
             Self::Null => 0,
             Self::Bool(_) => 0,
@@ -158,7 +158,7 @@ impl<'a> ValueRef<'a> {
     /// Index into a JSON array or object.
     /// A string index can be used to access a value in an object,
     /// and a usize index can be used to access an element of an array.
-    pub fn get(&self, index: impl Index) -> Option<ValueRef<'a>> {
+    pub fn get(self, index: impl Index) -> Option<ValueRef<'a>> {
         index.index_into(self)
     }
 }
@@ -194,7 +194,7 @@ pub struct NumberRef<'a> {
 
 impl NumberRef<'_> {
     /// Dereferences the number.
-    pub(crate) fn to_number(&self) -> Number {
+    pub(crate) fn to_number(self) -> Number {
         let mut data = self.data;
         match data.get_u8() {
             NUMBER_U64 => Number::from(data.get_u64_ne()),
@@ -240,10 +240,11 @@ impl PartialEq for NumberRef<'_> {
             (Some(a), Some(b)) => return a == b,           // a, b > 0
             (Some(_), None) if b.is_i64() => return false, // a >= 0 > b
             (None, Some(_)) if a.is_i64() => return false, // a < 0 <= b
-            (None, None) => match (a.as_i64(), b.as_i64()) {
-                (Some(a), Some(b)) => return a == b, // a, b < 0
-                _ => {}
-            },
+            (None, None) => {
+                if let (Some(a), Some(b)) = (a.as_i64(), b.as_i64()) {
+                    return a == b; // a, b < 0
+                }
+            }
             _ => {}
         }
         // either a or b is a float
@@ -269,10 +270,11 @@ impl Ord for NumberRef<'_> {
             (Some(a), Some(b)) => return a.cmp(&b), // a, b > 0
             (Some(_), None) if b.is_i64() => return std::cmp::Ordering::Greater, // a >= 0 > b
             (None, Some(_)) if a.is_i64() => return std::cmp::Ordering::Less, // a < 0 <= b
-            (None, None) => match (a.as_i64(), b.as_i64()) {
-                (Some(a), Some(b)) => return a.cmp(&b), // a, b < 0
-                _ => {}
-            },
+            (None, None) => {
+                if let (Some(a), Some(b)) = (a.as_i64(), b.as_i64()) {
+                    return a.cmp(&b); // a, b < 0
+                }
+            }
             _ => {}
         }
         // either a or b is a float
@@ -301,9 +303,12 @@ pub struct ArrayRef<'a> {
     _mark: PhantomData<&'a u8>,
 }
 
+unsafe impl<'a> Send for ArrayRef<'a> {}
+unsafe impl<'a> Sync for ArrayRef<'a> {}
+
 impl<'a> ArrayRef<'a> {
     /// Returns the element at the given index, or `None` if the index is out of bounds.
-    pub fn get(&self, index: usize) -> Option<ValueRef<'a>> {
+    pub fn get(self, index: usize) -> Option<ValueRef<'a>> {
         if index >= self.len() {
             return None;
         }
@@ -312,17 +317,17 @@ impl<'a> ArrayRef<'a> {
     }
 
     /// Returns the number of elements in the array.
-    pub fn len(&self) -> usize {
+    pub fn len(self) -> usize {
         unsafe { (self.ptr as *const u32).read() as usize }
     }
 
     /// Returns `true` if the array contains no elements.
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(self) -> bool {
         self.len() == 0
     }
 
     /// Returns an iterator over the array's elements.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
+    pub fn iter(self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         let base = self.ptr;
         unsafe {
             let entries = std::slice::from_raw_parts(
@@ -334,14 +339,14 @@ impl<'a> ArrayRef<'a> {
     }
 
     /// Returns the entire array as a slice.
-    pub(crate) fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(self) -> &'a [u8] {
         let len = self.len();
         let elem_len = self.elements_len();
         unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 4 * len) }
     }
 
     /// Returns the length of the array's elements, in bytes.
-    pub(crate) fn elements_len(&self) -> usize {
+    pub(crate) fn elements_len(self) -> usize {
         unsafe { (self.ptr as *const u32).add(1).read() as usize }
     }
 
@@ -415,9 +420,12 @@ pub struct ObjectRef<'a> {
     _mark: PhantomData<&'a u8>,
 }
 
+unsafe impl<'a> Send for ObjectRef<'a> {}
+unsafe impl<'a> Sync for ObjectRef<'a> {}
+
 impl<'a> ObjectRef<'a> {
     /// Returns the value associated with the given key, or `None` if the key is not present.
-    pub fn get(&self, key: &str) -> Option<ValueRef<'a>> {
+    pub fn get(self, key: &str) -> Option<ValueRef<'a>> {
         // do binary search since entries are ordered by key
         let idx = self
             .entries()
@@ -432,17 +440,17 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns the number of elements in the object.
-    pub fn len(&self) -> usize {
+    pub fn len(self) -> usize {
         unsafe { (self.ptr as *const u32).read() as usize }
     }
 
     /// Returns `true` if the object contains no elements.
-    pub fn is_empty(&self) -> bool {
+    pub fn is_empty(self) -> bool {
         self.len() == 0
     }
 
     /// Returns an iterator over the object's key-value pairs.
-    pub fn iter(&'a self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
+    pub fn iter(self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
         let base = self.ptr;
         unsafe {
             self.entries().iter().map(move |&(kentry, ventry)| {
@@ -454,24 +462,24 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's keys.
-    pub fn keys(&'a self) -> impl ExactSizeIterator<Item = &'a str> {
+    pub fn keys(self) -> impl ExactSizeIterator<Item = &'a str> {
         self.iter().map(|(k, _)| k)
     }
 
     /// Returns an iterator over the object's values.
-    pub fn values(&'a self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
+    pub fn values(self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         self.iter().map(|(_, v)| v)
     }
 
     /// Returns the entire object as a slice.
-    pub(crate) fn as_slice(&self) -> &[u8] {
+    pub(crate) fn as_slice(self) -> &'a [u8] {
         let len = self.len();
         let elem_len = self.elements_len();
         unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 8 * len) }
     }
 
     /// Returns the length of the object's elements, in bytes.
-    pub(crate) fn elements_len(&self) -> usize {
+    pub(crate) fn elements_len(self) -> usize {
         unsafe { (self.ptr as *const u32).add(1).read() as usize }
     }
 
@@ -484,7 +492,7 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns the key-value entries.
-    fn entries(&self) -> &[(Entry, Entry)] {
+    fn entries(self) -> &'a [(Entry, Entry)] {
         unsafe {
             std::slice::from_raw_parts(
                 (self.ptr as *const u32).add(2) as *const (Entry, Entry),
@@ -590,11 +598,11 @@ fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>
 pub trait Index: private::Sealed {
     /// Return None if the key is not already in the array or object.
     #[doc(hidden)]
-    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>>;
+    fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>>;
 }
 
 impl Index for usize {
-    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+    fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
         match v {
             ValueRef::Array(a) => a.get(*self),
             _ => None,
@@ -603,7 +611,7 @@ impl Index for usize {
 }
 
 impl Index for str {
-    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+    fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
         match v {
             ValueRef::Object(o) => o.get(self),
             _ => None,
@@ -612,7 +620,7 @@ impl Index for str {
 }
 
 impl Index for String {
-    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+    fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
         match v {
             ValueRef::Object(o) => o.get(self),
             _ => None,
@@ -624,7 +632,7 @@ impl<'a, T> Index for &'a T
 where
     T: ?Sized + Index,
 {
-    fn index_into<'v>(&self, v: &ValueRef<'v>) -> Option<ValueRef<'v>> {
+    fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
         (**self).index_into(v)
     }
 }

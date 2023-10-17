@@ -12,6 +12,11 @@ pub struct Value {
 }
 
 impl Value {
+    /// Returns a `null` value.
+    pub fn null() -> Self {
+        Self::from(())
+    }
+
     /// Creates a new JSON array from an iterator of values.
     pub fn array<'a>(iter: impl IntoIterator<Item = ValueRef<'a>>) -> Self {
         Self::from_builder(0, |b| {
@@ -152,7 +157,7 @@ impl Value {
     /// assert!(array.get("a").is_none());
     /// ```
     pub fn get(&self, index: impl Index) -> Option<ValueRef<'_>> {
-        index.index_into(&self.as_ref())
+        index.index_into(self.as_ref())
     }
 
     fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder)) -> Self {
@@ -192,7 +197,7 @@ impl Eq for Value {}
 
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.as_ref().partial_cmp(&other.as_ref())
+        Some(self.cmp(other))
     }
 }
 

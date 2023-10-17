@@ -14,6 +14,12 @@ pub struct Builder<W = Vec<u8>> {
     container_starts: Vec<(usize, usize)>,
 }
 
+impl Default for Builder<Vec<u8>> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Builder<Vec<u8>> {
     /// Creates a new [`Builder`].
     pub fn new() -> Self {
@@ -143,7 +149,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     }
 
     /// Finishes an object.
-    pub fn finish_object<'b>(&mut self) {
+    pub fn finish_object(&mut self) {
         let buffer = self.buffer.as_mut();
         let (start, npointer) = self.container_starts.pop().unwrap();
         let offset = buffer.len();

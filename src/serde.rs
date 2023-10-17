@@ -89,22 +89,26 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
 
             #[inline]
             fn visit_bool<E>(self, value: bool) -> Result<(), E> {
-                Ok(self.add_bool(value))
+                self.add_bool(value);
+                Ok(())
             }
 
             #[inline]
             fn visit_i64<E>(self, value: i64) -> Result<(), E> {
-                Ok(self.add_i64(value))
+                self.add_i64(value);
+                Ok(())
             }
 
             #[inline]
             fn visit_u64<E>(self, value: u64) -> Result<(), E> {
-                Ok(self.add_u64(value))
+                self.add_u64(value);
+                Ok(())
             }
 
             #[inline]
             fn visit_f64<E>(self, value: f64) -> Result<(), E> {
-                Ok(self.add_f64(value))
+                self.add_f64(value);
+                Ok(())
             }
 
             #[inline]
@@ -112,12 +116,14 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
             where
                 E: serde::de::Error,
             {
-                Ok(self.add_string(value))
+                self.add_string(value);
+                Ok(())
             }
 
             #[inline]
             fn visit_none<E>(self) -> Result<(), E> {
-                Ok(self.add_null())
+                self.add_null();
+                Ok(())
             }
 
             #[inline]
@@ -130,7 +136,8 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
 
             #[inline]
             fn visit_unit<E>(self) -> Result<(), E> {
-                Ok(self.add_null())
+                self.add_null();
+                Ok(())
             }
 
             #[inline]
@@ -140,7 +147,8 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
             {
                 self.begin_array();
                 while visitor.next_element_seed(&mut *self)?.is_some() {}
-                Ok(self.finish_array())
+                self.finish_array();
+                Ok(())
             }
 
             fn visit_map<V>(self, mut visitor: V) -> Result<(), V::Error>
@@ -151,7 +159,8 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
                 while visitor.next_key_seed(&mut *self)?.is_some() {
                     visitor.next_value_seed(&mut *self)?;
                 }
-                Ok(self.finish_object())
+                self.finish_object();
+                Ok(())
             }
         }
 

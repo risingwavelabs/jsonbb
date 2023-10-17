@@ -83,19 +83,17 @@ fn bench_eq(c: &mut Criterion) {
     let v1: serde_json::Value = json1.parse().unwrap();
     let v2: serde_json::Value = json2.parse().unwrap();
     assert_eq!(v1, v2);
-    c.bench_function(&format!("eq/serde_json"), |b| b.iter(|| v1 == v2));
+    c.bench_function("eq/serde_json", |b| b.iter(|| v1 == v2));
 
     let v1 = jsonb::parse_value(json1.as_bytes()).unwrap().to_vec();
     let v2 = jsonb::parse_value(json2.as_bytes()).unwrap().to_vec();
     assert_eq!(v1, v2);
-    c.bench_function(&format!("eq/jsonb"), |b| {
-        b.iter(|| jsonb::compare(&v1, &v2))
-    });
+    c.bench_function("eq/jsonb", |b| b.iter(|| jsonb::compare(&v1, &v2)));
 
     let v1 = simd_json::to_owned_value(&mut Vec::from(json1)).unwrap();
     let v2 = simd_json::to_owned_value(&mut Vec::from(json2)).unwrap();
     assert_eq!(v1, v2);
-    c.bench_function(&format!("eq/simd-json"), |b| b.iter(|| v1 == v2));
+    c.bench_function("eq/simd-json", |b| b.iter(|| v1 == v2));
 }
 
 fn bench_cmp(c: &mut Criterion) {
@@ -110,9 +108,7 @@ fn bench_cmp(c: &mut Criterion) {
     let v1 = jsonb::parse_value(json1.as_bytes()).unwrap().to_vec();
     let v2 = jsonb::parse_value(json2.as_bytes()).unwrap().to_vec();
     assert!(jsonb::compare(&v1, &v2).unwrap().is_lt());
-    c.bench_function(&format!("cmp/jsonb"), |b| {
-        b.iter(|| jsonb::compare(&v1, &v2))
-    });
+    c.bench_function("cmp/jsonb", |b| b.iter(|| jsonb::compare(&v1, &v2)));
 
     // serde_json and simd_json don't implement Ord
 }
@@ -142,7 +138,7 @@ fn bench_from(c: &mut Criterion) {
         b.iter(|| simd_json::OwnedValue::from(s))
     });
 
-    let s = 1234567890.1234567890;
+    let s = 1_234_567_890.123_456_7;
     c.bench_function("from_f64/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
     c.bench_function("from_f64/serde_json", |b| {
         b.iter(|| serde_json::Value::from(s))
