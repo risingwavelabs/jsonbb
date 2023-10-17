@@ -54,6 +54,50 @@ fn bench_to_string(c: &mut Criterion) {
     }
 }
 
+fn bench_hash(c: &mut Criterion) {
+    use std::hash::{Hash, Hasher};
+
+    let json = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
+
+    fn hash(v: &impl Hash) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        v.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    let v: jsonbb::Value = json.parse().unwrap();
+    c.bench_function("hash/jsonbb", |b| b.iter(|| hash(&v)));
+
+    // other crates don't implement Hash
+}
+
+fn bench_eq(c: &mut Criterion) {
+    let json1 = r#"{"a":"foo","b":[null,1,"bar"]}"#;
+    let json2 = r#"{"b":[null,1,"bar"],"a":"foo"}"#;
+
+    let v1: jsonbb::Value = json1.parse().unwrap();
+    let v2: jsonbb::Value = json2.parse().unwrap();
+    assert_eq!(v1, v2);
+    c.bench_function("eq/jsonbb", |b| b.iter(|| v1 == v2));
+
+    let v1: serde_json::Value = json1.parse().unwrap();
+    let v2: serde_json::Value = json2.parse().unwrap();
+    assert_eq!(v1, v2);
+    c.bench_function(&format!("eq/serde_json"), |b| b.iter(|| v1 == v2));
+
+    let v1 = jsonb::parse_value(json1.as_bytes()).unwrap().to_vec();
+    let v2 = jsonb::parse_value(json2.as_bytes()).unwrap().to_vec();
+    assert_eq!(v1, v2);
+    c.bench_function(&format!("eq/jsonb"), |b| {
+        b.iter(|| jsonb::compare(&v1, &v2))
+    });
+
+    let v1 = simd_json::to_owned_value(&mut Vec::from(json1)).unwrap();
+    let v2 = simd_json::to_owned_value(&mut Vec::from(json2)).unwrap();
+    assert_eq!(v1, v2);
+    c.bench_function(&format!("eq/simd-json"), |b| b.iter(|| v1 == v2));
+}
+
 fn bench_from(c: &mut Criterion) {
     let s = "1234567890";
     c.bench_function("from_string/jsonbb", |b| b.iter(|| jsonbb::Value::from(s)));
@@ -349,6 +393,8 @@ criterion_group!(
     bench_from,
     bench_parse,
     bench_to_string,
+    bench_hash,
+    bench_eq,
     bench_index,
     bench_index_array,
     bench_file_index,

@@ -1,10 +1,11 @@
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use super::*;
 pub use serde_json::Number;
 
 /// A reference to a JSON value.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum ValueRef<'a> {
     /// Represents a JSON null value.
     Null,
@@ -268,6 +269,14 @@ impl PartialEq for ArrayRef<'_> {
 
 impl Eq for ArrayRef<'_> {}
 
+impl Hash for ArrayRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for v in self.iter() {
+            v.hash(state);
+        }
+    }
+}
+
 /// A reference to a JSON object.
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
@@ -383,6 +392,15 @@ impl PartialEq for ObjectRef<'_> {
 }
 
 impl Eq for ObjectRef<'_> {}
+
+impl Hash for ObjectRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for (k, v) in self.iter() {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
+}
 
 /// Serialize a value in JSON format.
 fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>) -> fmt::Result {

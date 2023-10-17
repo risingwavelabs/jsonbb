@@ -1,5 +1,9 @@
 use super::*;
-use std::{fmt, str::FromStr};
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
 /// An owned JSON value.
 #[derive(Clone)]
@@ -171,6 +175,12 @@ impl PartialEq for Value {
 }
 
 impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_ref().hash(state)
+    }
+}
 
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
