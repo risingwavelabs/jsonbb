@@ -106,11 +106,25 @@ impl Value {
     }
 
     /// If the value is an array, returns the associated array. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value: jsonbb::Value = "[]".parse().unwrap();
+    /// assert_eq!(value.as_array().unwrap().len(), 0);
+    /// ```
     pub fn as_array(&self) -> Option<ArrayRef<'_>> {
         self.as_ref().as_array()
     }
 
     /// If the value is an object, returns the associated map. Returns `None` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let value: jsonbb::Value = "{}".parse().unwrap();
+    /// assert_eq!(value.as_object().unwrap().len(), 0);
+    /// ```
     pub fn as_object(&self) -> Option<ObjectRef<'_>> {
         self.as_ref().as_object()
     }
@@ -164,8 +178,8 @@ impl fmt::Display for Value {
 /// # Example
 ///
 /// ```
-/// let a: jsonbb::Value = r#"{"a": 1.0, "b": 2}"#.parse().unwrap();
-/// let b: jsonbb::Value = r#"{"b": 2, "a": 1.00}"#.parse().unwrap();
+/// let a: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+/// let b: jsonbb::Value = r#"{"b": 2, "a": 1.0}"#.parse().unwrap();
 /// assert_eq!(a, b);
 /// ```
 impl PartialEq for Value {
@@ -175,6 +189,59 @@ impl PartialEq for Value {
 }
 
 impl Eq for Value {}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.as_ref().partial_cmp(&other.as_ref())
+    }
+}
+
+/// Compare two JSON values.
+///
+/// The ordering is defined as follows:
+/// <https://www.postgresql.org/docs/current/datatype-json.html#JSON-INDEXING>
+///
+/// # Example
+///
+/// ```
+/// use jsonbb::Value;
+///
+/// // Object > Array > Boolean > Number > String > Null
+/// let v = ["null", r#""str""#, "-1", "0", "3.14", "false", "true", "[]", "{}"];
+/// let v = v.iter().map(|s| s.parse().unwrap()).collect::<Vec<Value>>();
+/// for (i, a) in v.iter().enumerate() {
+///     for b in v.iter().skip(i + 1) {
+///         assert!(a < b);
+///     }
+/// }
+///
+/// // Array with n elements > array with n - 1 elements
+/// let a: Value = r#"[1, 2, 3]"#.parse().unwrap();
+/// let b: Value = r#"[1, 2]"#.parse().unwrap();
+/// assert!(a > b);
+///
+/// // arrays with equal numbers of elements are compared in the order:
+/// //  element-1, element-2 ...
+/// let a: Value = r#"[1, 2]"#.parse().unwrap();
+/// let b: Value = r#"[1, 3]"#.parse().unwrap();
+/// assert!(a < b);
+///
+/// // Object with n pairs > object with n - 1 pairs
+/// let a: Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+/// let b: Value = r#"{"a": 1}"#.parse().unwrap();
+/// assert!(a > b);
+///
+/// // Objects with equal numbers of pairs are compared in the order:
+/// //  key-1, value-1, key-2 ...
+/// let a: Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+/// let b: Value = r#"{"a": 2, "b": 1}"#.parse().unwrap();
+/// assert!(a < b);
+/// ```
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_ref().cmp(&other.as_ref())
+    }
+}
 
 impl Hash for Value {
     fn hash<H: Hasher>(&self, state: &mut H) {

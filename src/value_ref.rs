@@ -2,19 +2,23 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use super::*;
-pub use serde_json::Number;
+use bytes::Buf;
+use serde_json::Number;
 
 /// A reference to a JSON value.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValueRef<'a> {
+    // NOTE: Order matters!
+    // we follow postgresql's order:
+    //  Object > Array > Boolean > Number > String > Null
     /// Represents a JSON null value.
     Null,
-    /// Represents a JSON boolean.
-    Bool(bool),
-    /// Represents a JSON number.
-    Number(Number),
     /// Represents a JSON string.
     String(&'a str),
+    /// Represents a JSON number.
+    Number(NumberRef<'a>),
+    /// Represents a JSON boolean.
+    Bool(bool),
     /// Represents a JSON array.
     Array(ArrayRef<'a>),
     /// Represents a JSON object.
@@ -45,6 +49,14 @@ impl<'a> ValueRef<'a> {
     pub fn as_bool(self) -> Option<bool> {
         match self {
             Self::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// If the value is a number, returns the associated number. Returns `None` otherwise.
+    pub fn as_number(self) -> Option<NumberRef<'a>> {
+        match self {
+            Self::Number(n) => Some(n),
             _ => None,
         }
     }
@@ -111,16 +123,8 @@ impl<'a> ValueRef<'a> {
             Self::Bool(true)
         } else if entry.is_number() {
             let ptr = entry.apply_offset(base);
-            let kind = ptr.read();
-            let payload = ptr.add(1);
-            match kind {
-                NUMBER_U64 => Self::Number(Number::from((payload as *const u64).read())),
-                NUMBER_I64 => Self::Number(Number::from((payload as *const i64).read())),
-                NUMBER_F64 => {
-                    Self::Number(Number::from_f64((payload as *const f64).read()).unwrap())
-                }
-                _ => panic!("invalid number kind"),
-            }
+            let data = std::slice::from_raw_parts(ptr, 9);
+            Self::Number(NumberRef { data })
         } else if entry.is_string() {
             let ptr = entry.apply_offset(base);
             let len = (ptr as *const u32).read() as usize;
@@ -176,6 +180,111 @@ impl fmt::Debug for ValueRef<'_> {
 impl fmt::Display for ValueRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         serialize_in_json(self, f)
+    }
+}
+
+/// A reference to a JSON number.
+#[derive(Clone, Copy)]
+pub struct NumberRef<'a> {
+    // # layout
+    // | tag | number |
+    // |  1  |   8    |
+    data: &'a [u8],
+}
+
+impl NumberRef<'_> {
+    /// Dereferences the number.
+    pub(crate) fn to_number(&self) -> Number {
+        let mut data = self.data;
+        match data.get_u8() {
+            NUMBER_U64 => Number::from(data.get_u64_ne()),
+            NUMBER_I64 => Number::from(data.get_i64_ne()),
+            NUMBER_F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
+            _ => panic!("invalid number tag"),
+        }
+    }
+
+    /// If the number is an integer, returns the associated u64. Returns `None` otherwise.
+    pub fn as_u64(self) -> Option<u64> {
+        self.to_number().as_u64()
+    }
+
+    /// If the number is an integer, returns the associated i64. Returns `None` otherwise.
+    pub fn as_i64(self) -> Option<i64> {
+        self.to_number().as_i64()
+    }
+
+    /// If the number is a float, returns the associated f64. Returns `None` otherwise.
+    pub fn as_f64(self) -> Option<f64> {
+        self.to_number().as_f64()
+    }
+}
+
+impl fmt::Debug for NumberRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to_number().fmt(f)
+    }
+}
+
+impl fmt::Display for NumberRef<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.to_number().fmt(f)
+    }
+}
+
+impl PartialEq for NumberRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let a = self.to_number();
+        let b = other.to_number();
+        match (a.as_u64(), b.as_u64()) {
+            (Some(a), Some(b)) => return a == b,           // a, b > 0
+            (Some(_), None) if b.is_i64() => return false, // a >= 0 > b
+            (None, Some(_)) if a.is_i64() => return false, // a < 0 <= b
+            (None, None) => match (a.as_i64(), b.as_i64()) {
+                (Some(a), Some(b)) => return a == b, // a, b < 0
+                _ => {}
+            },
+            _ => {}
+        }
+        // either a or b is a float
+        let a = a.as_f64().unwrap();
+        let b = b.as_f64().unwrap();
+        a == b
+    }
+}
+
+impl Eq for NumberRef<'_> {}
+
+impl PartialOrd for NumberRef<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for NumberRef<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let a = self.to_number();
+        let b = other.to_number();
+        match (a.as_u64(), b.as_u64()) {
+            (Some(a), Some(b)) => return a.cmp(&b), // a, b > 0
+            (Some(_), None) if b.is_i64() => return std::cmp::Ordering::Greater, // a >= 0 > b
+            (None, Some(_)) if a.is_i64() => return std::cmp::Ordering::Less, // a < 0 <= b
+            (None, None) => match (a.as_i64(), b.as_i64()) {
+                (Some(a), Some(b)) => return a.cmp(&b), // a, b < 0
+                _ => {}
+            },
+            _ => {}
+        }
+        // either a or b is a float
+        let a = a.as_f64().unwrap();
+        let b = b.as_f64().unwrap();
+        a.partial_cmp(&b).expect("NaN or Inf in JSON number")
+    }
+}
+
+impl Hash for NumberRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_number().hash(state);
     }
 }
 
@@ -268,6 +377,22 @@ impl PartialEq for ArrayRef<'_> {
 }
 
 impl Eq for ArrayRef<'_> {}
+
+impl PartialOrd for ArrayRef<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ArrayRef<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Array with n elements > array with n - 1 elements
+        match self.len().cmp(&other.len()) {
+            std::cmp::Ordering::Equal => self.iter().cmp(other.iter()),
+            ord => ord,
+        }
+    }
+}
 
 impl Hash for ArrayRef<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -392,6 +517,22 @@ impl PartialEq for ObjectRef<'_> {
 }
 
 impl Eq for ObjectRef<'_> {}
+
+impl PartialOrd for ObjectRef<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ObjectRef<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Object with n pairs > object with n - 1 pairs
+        match self.len().cmp(&other.len()) {
+            std::cmp::Ordering::Equal => self.iter().cmp(other.iter()),
+            ord => ord,
+        }
+    }
+}
 
 impl Hash for ObjectRef<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {

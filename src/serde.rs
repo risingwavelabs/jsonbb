@@ -5,7 +5,7 @@ use std::fmt;
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeMap, SerializeSeq};
 
-use crate::{ArrayRef, Builder, ObjectRef, Value, ValueRef};
+use crate::{ArrayRef, Builder, NumberRef, ObjectRef, Value, ValueRef};
 
 impl Serialize for Value {
     #[inline]
@@ -31,6 +31,16 @@ impl Serialize for ValueRef<'_> {
             Self::Array(v) => v.serialize(serializer),
             Self::Object(o) => o.serialize(serializer),
         }
+    }
+}
+
+impl Serialize for NumberRef<'_> {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        self.to_number().serialize(serializer)
     }
 }
 

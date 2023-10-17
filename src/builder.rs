@@ -72,6 +72,9 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds an i64 value to the builder.
     pub fn add_i64(&mut self, v: i64) {
+        if v >= 0 {
+            return self.add_u64(v as u64);
+        }
         let buffer = self.buffer.as_mut();
         let offset = buffer.len();
         buffer.push(NUMBER_I64);
