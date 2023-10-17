@@ -62,7 +62,7 @@ impl Serialize for ObjectRef<'_> {
     }
 }
 
-impl<'de> DeserializeSeed<'de> for &mut Builder<'_> {
+impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
     type Value = ();
 
     #[inline]
@@ -70,7 +70,7 @@ impl<'de> DeserializeSeed<'de> for &mut Builder<'_> {
     where
         D: serde::Deserializer<'de>,
     {
-        impl<'de> Visitor<'de> for &mut Builder<'_> {
+        impl<'de, W: AsMut<Vec<u8>>> Visitor<'de> for &mut Builder<W> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

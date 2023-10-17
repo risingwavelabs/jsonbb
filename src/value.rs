@@ -8,6 +8,17 @@ pub struct Value {
 }
 
 impl Value {
+    /// Creates a new JSON array from an iterator of values.
+    pub fn array<'a>(iter: impl IntoIterator<Item = ValueRef<'a>>) -> Self {
+        Self::from_builder(0, |b| {
+            b.begin_array();
+            for v in iter {
+                b.add_value(v);
+            }
+            b.finish_array();
+        })
+    }
+
     /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
         unsafe { ValueRef::from_bytes(&self.buffer) }
@@ -127,13 +138,9 @@ impl Value {
     }
 
     fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder)) -> Self {
-        let mut buffer = Vec::with_capacity(capacity);
-        let mut builder = Builder::new(&mut buffer);
+        let mut builder = Builder::with_capacity(capacity);
         f(&mut builder);
-        builder.finish();
-        Self {
-            buffer: buffer.into_boxed_slice(),
-        }
+        builder.finish()
     }
 }
 
@@ -177,7 +184,7 @@ impl From<&serde_json::Value> for Value {
     }
 }
 
-impl Builder<'_> {
+impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// Adds a serde `Value` recursively to the builder and returns its ptr.
     fn add_serde_value(&mut self, value: &serde_json::Value) {
         match value {
@@ -220,14 +227,10 @@ impl FromStr for Value {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use ::serde::de::DeserializeSeed;
 
-        let mut buffer = Vec::with_capacity(s.len());
-        let mut builder = Builder::new(&mut buffer);
+        let mut builder = Builder::with_capacity(s.len());
         let mut deserializer = serde_json::Deserializer::from_str(s);
         builder.deserialize(&mut deserializer)?;
-        builder.finish();
-        Ok(Value {
-            buffer: buffer.into_boxed_slice(),
-        })
+        Ok(builder.finish())
     }
 }
 

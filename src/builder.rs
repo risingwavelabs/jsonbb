@@ -3,9 +3,9 @@ use bytes::BufMut;
 use smallvec::SmallVec;
 
 /// A builder for JSON values.
-pub struct Builder<'a> {
+pub struct Builder<W = Vec<u8>> {
     /// The buffer to write to.
-    buffer: &'a mut Vec<u8>,
+    buffer: W,
     /// A stack of pointers.
     ///
     /// Smallvec is used to avoid heap allocation for single value.
@@ -14,7 +14,23 @@ pub struct Builder<'a> {
     container_starts: Vec<(usize, usize)>,
 }
 
-impl<'a> Builder<'a> {
+impl Builder<Vec<u8>> {
+    /// Creates a new [`Builder`].
+    pub fn new() -> Self {
+        Self::with_capacity(0)
+    }
+
+    /// Creates a new [`Builder`] with capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        Builder {
+            buffer: Vec::with_capacity(capacity),
+            pointers: SmallVec::new(),
+            container_starts: vec![],
+        }
+    }
+}
+
+impl<'a> Builder<&'a mut Vec<u8>> {
     /// Creates a new [`Builder`].
     pub fn new(buffer: &'a mut Vec<u8>) -> Self {
         Builder {
@@ -23,7 +39,9 @@ impl<'a> Builder<'a> {
             container_starts: vec![],
         }
     }
+}
 
+impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// Adds a null value to the builder.
     pub fn add_null(&mut self) {
         self.pointers.push(Ptr {
@@ -42,9 +60,10 @@ impl<'a> Builder<'a> {
 
     /// Adds an u64 value to the builder.
     pub fn add_u64(&mut self, v: u64) {
-        let offset = self.buffer.len();
-        self.buffer.push(NUMBER_U64);
-        self.buffer.put_u64_ne(v);
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
+        buffer.push(NUMBER_U64);
+        buffer.put_u64_ne(v);
         self.pointers.push(Ptr {
             offset,
             entry: Entry::number(),
@@ -53,9 +72,10 @@ impl<'a> Builder<'a> {
 
     /// Adds an i64 value to the builder.
     pub fn add_i64(&mut self, v: i64) {
-        let offset = self.buffer.len();
-        self.buffer.push(NUMBER_I64);
-        self.buffer.put_i64_ne(v);
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
+        buffer.push(NUMBER_I64);
+        buffer.put_i64_ne(v);
         self.pointers.push(Ptr {
             offset,
             entry: Entry::number(),
@@ -64,9 +84,10 @@ impl<'a> Builder<'a> {
 
     /// Adds an f64 value to the builder.
     pub fn add_f64(&mut self, v: f64) {
-        let offset = self.buffer.len();
-        self.buffer.push(NUMBER_F64);
-        self.buffer.put_f64_ne(v);
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
+        buffer.push(NUMBER_F64);
+        buffer.put_f64_ne(v);
         self.pointers.push(Ptr {
             offset,
             entry: Entry::number(),
@@ -75,9 +96,10 @@ impl<'a> Builder<'a> {
 
     /// Adds a string value to the builder.
     pub fn add_string(&mut self, v: &str) {
-        let offset = self.buffer.len();
-        self.buffer.put_u32_ne(v.len() as u32);
-        self.buffer.put_slice(v.as_bytes());
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
+        buffer.put_u32_ne(v.len() as u32);
+        buffer.put_slice(v.as_bytes());
         self.pointers.push(Ptr {
             offset,
             entry: Entry::string(),
@@ -86,21 +108,23 @@ impl<'a> Builder<'a> {
 
     /// Begins an array.
     pub fn begin_array(&mut self) {
+        let buffer = self.buffer.as_mut();
         self.container_starts
-            .push((self.buffer.len(), self.pointers.len()));
+            .push((buffer.len(), self.pointers.len()));
     }
 
     /// Finishes an array.
     pub fn finish_array(&mut self) {
+        let buffer = self.buffer.as_mut();
         let (start, npointer) = self.container_starts.pop().unwrap();
-        let offset = self.buffer.len();
+        let offset = buffer.len();
         let payload_size = offset - start;
         let len = self.pointers.len() - npointer;
-        self.buffer.reserve(4 + 4 + 4 * len);
-        self.buffer.put_u32_ne(len as u32);
-        self.buffer.put_u32_ne(payload_size as u32);
+        buffer.reserve(4 + 4 + 4 * len);
+        buffer.put_u32_ne(len as u32);
+        buffer.put_u32_ne(payload_size as u32);
         for value in self.pointers.drain(npointer..) {
-            self.buffer.put_u32_ne(value.to_entry(offset));
+            buffer.put_u32_ne(value.to_entry(offset));
         }
         self.pointers.push(Ptr {
             offset,
@@ -110,30 +134,32 @@ impl<'a> Builder<'a> {
 
     /// Begins an object.
     pub fn begin_object(&mut self) {
+        let buffer = self.buffer.as_mut();
         self.container_starts
-            .push((self.buffer.len(), self.pointers.len()));
+            .push((buffer.len(), self.pointers.len()));
     }
 
     /// Finishes an object.
     pub fn finish_object<'b>(&mut self) {
+        let buffer = self.buffer.as_mut();
         let (start, npointer) = self.container_starts.pop().unwrap();
-        let offset = self.buffer.len();
+        let offset = buffer.len();
         let payload_size = offset - start;
         let len = (self.pointers.len() - npointer) / 2;
-        self.buffer.reserve(4 + 4 + 8 * len);
-        self.buffer.put_u32_ne(len as u32);
-        self.buffer.put_u32_ne(payload_size as u32);
+        buffer.reserve(4 + 4 + 8 * len);
+        buffer.put_u32_ne(len as u32);
+        buffer.put_u32_ne(payload_size as u32);
         for ptr in self.pointers.drain(npointer..) {
-            self.buffer.put_u32_ne(ptr.to_entry(offset));
+            buffer.put_u32_ne(ptr.to_entry(offset));
         }
         // sort entries by key
         let entries = unsafe {
             std::slice::from_raw_parts_mut(
-                self.buffer.as_ptr().add(offset + 8) as *mut (Entry, Entry),
+                buffer.as_ptr().add(offset + 8) as *mut (Entry, Entry),
                 len,
             )
         };
-        let base = unsafe { self.buffer.as_ptr().add(offset) };
+        let base = unsafe { buffer.as_ptr().add(offset) };
         entries.sort_unstable_by_key(|(k, _)| unsafe {
             ValueRef::from_raw(base, *k)
                 .as_str()
@@ -164,16 +190,18 @@ impl<'a> Builder<'a> {
             }
             ValueRef::String(s) => self.add_string(s),
             ValueRef::Array(a) => {
-                let offset = self.buffer.len() + a.elements_len();
-                self.buffer.extend_from_slice(a.as_slice());
+                let buffer = self.buffer.as_mut();
+                let offset = buffer.len() + a.elements_len();
+                buffer.extend_from_slice(a.as_slice());
                 self.pointers.push(Ptr {
                     offset,
                     entry: Entry::array(),
                 });
             }
             ValueRef::Object(o) => {
-                let offset = self.buffer.len() + o.elements_len();
-                self.buffer.extend_from_slice(o.as_slice());
+                let buffer = self.buffer.as_mut();
+                let offset = buffer.len() + o.elements_len();
+                buffer.extend_from_slice(o.as_slice());
                 self.pointers.push(Ptr {
                     offset,
                     entry: Entry::object(),
@@ -183,15 +211,34 @@ impl<'a> Builder<'a> {
     }
 
     /// Finishes building.
-    pub fn finish(mut self) {
-        let offset = self.buffer.len();
+    fn finish_internal(mut self) -> W {
+        assert_eq!(self.pointers.len(), 1, "expected single root value");
+        assert!(self.container_starts.is_empty(), "unfinished container");
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
         let ptr = self.pointers.pop().unwrap();
-        assert!(self.pointers.is_empty());
-        assert!(self.container_starts.is_empty());
-        self.buffer.put_u32_ne(ptr.to_entry(offset));
+        buffer.put_u32_ne(ptr.to_entry(offset));
+        self.buffer
     }
 }
 
+impl Builder<Vec<u8>> {
+    /// Finishes building.
+    pub fn finish(self) -> Value {
+        Value {
+            buffer: self.finish_internal().into(),
+        }
+    }
+}
+
+impl<'a> Builder<&'a mut Vec<u8>> {
+    /// Finishes building.
+    pub fn finish(self) {
+        self.finish_internal();
+    }
+}
+
+/// A pointer to a pushed node.
 struct Ptr {
     offset: usize,
     entry: Entry,
