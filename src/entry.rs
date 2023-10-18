@@ -52,6 +52,10 @@ impl Entry {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
         Self((Self::OBJECT_TAG << 29) | (offset as u32))
     }
+
+    pub const fn is_string(self) -> bool {
+        self.0 >> 29 == Self::STRING_TAG
+    }
 }
 
 pub const NUMBER_U64: u8 = 0x1;

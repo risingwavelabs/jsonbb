@@ -169,11 +169,17 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let entries = unsafe {
             std::slice::from_raw_parts_mut(buffer.as_ptr().add(base) as *mut (Entry, Entry), len)
         };
-        let data = &buffer[start..];
+        for (k, _) in entries.iter() {
+            assert!(k.is_string(), "key must be string");
+        }
         entries.sort_unstable_by_key(|(k, _)| {
-            ValueRef::from_slice(data, *k)
-                .as_str()
-                .expect("key must be string")
+            // Performance tip: this closure is in hot path, so we use `unsafe` to avoid bound check.
+            // SAFETY: the string is pushed by us, so it's valid UTF-8 and the range is valid.
+            let offset = start + k.offset();
+            unsafe {
+                let len = buffer.as_ptr().add(offset).cast::<u32>().read_unaligned() as usize;
+                std::str::from_utf8_unchecked(&buffer.get_unchecked(offset + 4..offset + 4 + len))
+            }
         });
 
         let offset = self.offset();
