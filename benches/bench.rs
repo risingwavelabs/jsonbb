@@ -98,7 +98,7 @@ fn bench_eq(c: &mut Criterion) {
 
 fn bench_cmp(c: &mut Criterion) {
     let json1 = r#"{"a":"foo","b":[null,1,"bar"]}"#;
-    let json2 = r#"{"a":"foo","b":[null,2,"bar"]}"#;
+    let json2 = r#"{"a":"foo","b":[null,1,"baz"]}"#;
 
     let v1: jsonbb::Value = json1.parse().unwrap();
     let v2: jsonbb::Value = json2.parse().unwrap();

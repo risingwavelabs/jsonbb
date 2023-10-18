@@ -62,9 +62,11 @@ It has the following key features:
 | `canada.parse()`            | 4.9719 ms | 12.640 ms | 10.806 ms      | 6.0767 ms [^1] |
 | `canada.to_json()`          | 5.4921 ms | 20.420 ms | 5.5702 ms      | 3.0548 ms      |
 | `canada.size()`             | 2,117,412 B | 1,892,844 B |            |                |
-| `from("1234567890")`        | 27.377 ns | 91.037 ns | 45.130 ns      | 21.513 ns      |
 | `canada["type"]`[^2]        | 38.706 ns[^2.1] | 316.51 ns[^2.2] | 67.202 ns [^2.3] | 27.102 ns [^2.4] |
 | `citm_catalog["areaNames"]` | 89.949 ns | 328.70 ns | 2.1190 µs [^3] | 1.9012 µs [^3] |
+| `from("1234567890")`        | 27.377 ns | 91.037 ns | 45.130 ns      | 21.513 ns      |
+| `a == b`                    | 57.787 ns | 115.89 ns | 39.213 ns      | 41.675 ns      |
+| `a < b`                     | 55.231 ns | 120.77 ns | not supported  | not supported  |
 
 [jsonb]: https://docs.rs/jsonb/0.3.0/jsonb/
 [serde_json]: https://docs.rs/serde_json/1.0.107/serde_json/
