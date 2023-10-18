@@ -28,6 +28,38 @@ impl Value {
         })
     }
 
+    /// Creates a new JSON object from an iterator of key-value pairs.
+    pub fn object<'a>(iter: impl IntoIterator<Item = (&'a str, ValueRef<'a>)>) -> Self {
+        Self::from_builder(0, |b| {
+            b.begin_object();
+            for (k, v) in iter {
+                b.add_string(k);
+                b.add_value(v);
+            }
+            b.finish_object();
+        })
+    }
+
+    /// Deserialize an instance of `Value` from bytes of JSON text.
+    pub fn from_text(json: &[u8]) -> serde_json::Result<Self> {
+        use ::serde::de::DeserializeSeed;
+
+        let mut builder = Builder::with_capacity(json.len());
+        let mut deserializer = serde_json::Deserializer::from_slice(json);
+        builder.deserialize(&mut deserializer)?;
+        Ok(builder.finish())
+    }
+
+    /// Creates a JSON `Value` from a slice of bytes.
+    ///
+    /// # Safety
+    /// The bytes must be a valid jsonbb encoding.
+    pub unsafe fn from_bytes(bytes: &[u8]) -> Self {
+        Self {
+            buffer: bytes.into(),
+        }
+    }
+
     /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
         unsafe { ValueRef::from_bytes(&self.buffer) }
@@ -140,6 +172,7 @@ impl Value {
     }
 
     /// Index into a JSON array or object.
+    ///
     /// A string index can be used to access a value in an object,
     /// and a usize index can be used to access an element of an array.
     ///
@@ -158,6 +191,44 @@ impl Value {
     /// ```
     pub fn get(&self, index: impl Index) -> Option<ValueRef<'_>> {
         index.index_into(self.as_ref())
+    }
+
+    /// Push a value into a JSON array.
+    ///
+    /// This function is `O(N)` where N is the number of elements in the array.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an array.
+    ///
+    /// # Example
+    /// ```
+    /// let mut array: jsonbb::Value = "[1]".parse().unwrap();
+    /// let value: jsonbb::Value = 2.into();
+    /// array.array_push(value.as_ref());
+    /// assert_eq!(array.to_string(), "[1,2]");
+    /// ```
+    pub fn array_push(&mut self, value: ValueRef<'_>) {
+        todo!();
+    }
+
+    /// Insert a value into a JSON object.
+    ///
+    /// This function is `O(N)` where N is the number of keys in the object.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an object.
+    ///
+    /// # Example
+    /// ```
+    /// let mut object: jsonbb::Value = r#"{"a":1}"#.parse().unwrap();
+    /// let value: jsonbb::Value = 2.into();
+    /// object.object_insert("b", value.as_ref());
+    /// assert_eq!(object.to_string(), r#"{"a":1,"b":2}"#);
+    /// ```
+    pub fn object_insert(&mut self, key: &str, value: ValueRef<'_>) {
+        todo!();
     }
 
     fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder)) -> Self {
@@ -266,6 +337,12 @@ impl From<&serde_json::Value> for Value {
     }
 }
 
+impl From<Value> for serde_json::Value {
+    fn from(value: Value) -> Self {
+        value.as_ref().into()
+    }
+}
+
 impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// Adds a serde `Value` recursively to the builder and returns its ptr.
     fn add_serde_value(&mut self, value: &serde_json::Value) {
@@ -307,12 +384,7 @@ impl FromStr for Value {
     type Err = serde_json::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use ::serde::de::DeserializeSeed;
-
-        let mut builder = Builder::with_capacity(s.len());
-        let mut deserializer = serde_json::Deserializer::from_str(s);
-        builder.deserialize(&mut deserializer)?;
-        Ok(builder.finish())
+        Self::from_text(s.as_bytes())
     }
 }
 

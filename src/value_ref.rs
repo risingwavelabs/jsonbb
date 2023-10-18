@@ -144,7 +144,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// Returns the capacity to store this value, in bytes.
-    pub(crate) fn capacity(self) -> usize {
+    pub fn capacity(self) -> usize {
         match self {
             Self::Null => 0,
             Self::Bool(_) => 0,
@@ -180,6 +180,24 @@ impl fmt::Debug for ValueRef<'_> {
 impl fmt::Display for ValueRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         serialize_in_json(self, f)
+    }
+}
+
+/// Build a `serde_json::Value` from a jsonbb node.
+impl From<ValueRef<'_>> for serde_json::Value {
+    fn from(value: ValueRef<'_>) -> Self {
+        match value {
+            ValueRef::Null => Self::Null,
+            ValueRef::Bool(b) => Self::Bool(b),
+            ValueRef::Number(n) => Self::Number(n.to_number()),
+            ValueRef::String(s) => Self::String(s.to_owned()),
+            ValueRef::Array(a) => Self::Array(a.iter().map(Self::from).collect()),
+            ValueRef::Object(o) => Self::Object(
+                o.iter()
+                    .map(|(k, v)| (k.to_owned(), Self::from(v)))
+                    .collect(),
+            ),
+        }
     }
 }
 

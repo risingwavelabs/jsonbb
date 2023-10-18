@@ -1,6 +1,7 @@
 use super::*;
 use bytes::BufMut;
 use smallvec::SmallVec;
+use std::fmt::{self, Debug, Display};
 
 /// A builder for JSON values.
 pub struct Builder<W = Vec<u8>> {
@@ -12,6 +13,12 @@ pub struct Builder<W = Vec<u8>> {
     pointers: SmallVec<[Ptr; 1]>,
     /// A stack of (position, number of pointers) pairs when the array/object starts.
     container_starts: Vec<(usize, usize)>,
+}
+
+impl<W> Debug for Builder<W> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("JsonbbBuilder").finish()
+    }
 }
 
 impl Default for Builder<Vec<u8>> {
@@ -107,8 +114,27 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     pub fn add_string(&mut self, v: &str) {
         let buffer = self.buffer.as_mut();
         let offset = buffer.len();
-        buffer.put_u32_ne(v.len() as u32);
+        buffer.put_u32_ne(v.len().try_into().expect("string too long"));
         buffer.put_slice(v.as_bytes());
+        self.pointers.push(Ptr {
+            offset,
+            entry: Entry::string(),
+        });
+    }
+
+    /// Adds a string value that displays the given value to the builder.
+    pub fn display(&mut self, v: impl Display) {
+        use std::io::Write;
+
+        let buffer = self.buffer.as_mut();
+        let offset = buffer.len();
+        buffer.put_u32_ne(0); // placeholder for length
+        write!(buffer, "{}", v).unwrap();
+
+        // update length
+        let len = buffer.len() - offset - 4;
+        (&mut buffer[offset..]).put_u32_ne(len.try_into().expect("string too long"));
+
         self.pointers.push(Ptr {
             offset,
             entry: Entry::string(),
