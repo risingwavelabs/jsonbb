@@ -136,7 +136,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let len = self.pointers.len() - npointer;
         buffer.reserve(4 * len + 4 + 4);
         for entry in self.pointers.drain(npointer..) {
-            buffer.put_u32_ne(entry.as_u32());
+            buffer.put_u32_ne(entry.0);
         }
         buffer.put_u32_ne(len as u32);
         buffer.put_u32_ne((buffer.len() - start + 4) as u32);
@@ -160,7 +160,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let len = (self.pointers.len() - npointer) / 2;
         buffer.reserve(8 * len + 4 + 4);
         for entry in self.pointers.drain(npointer..) {
-            buffer.put_u32_ne(entry.as_u32());
+            buffer.put_u32_ne(entry.0);
         }
         buffer.put_u32_ne(len as u32);
         buffer.put_u32_ne((buffer.len() - start + 4) as u32);
@@ -218,7 +218,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         assert!(self.container_starts.is_empty(), "unfinished container");
         let buffer = self.buffer.as_mut();
         let entry = self.pointers.pop().unwrap();
-        buffer.put_u32_ne(entry.as_u32());
+        buffer.put_u32_ne(entry.0);
         self.buffer
     }
 

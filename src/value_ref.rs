@@ -109,30 +109,32 @@ impl<'a> ValueRef<'a> {
     }
 
     pub(crate) fn from_slice(data: &'a [u8], entry: Entry) -> Self {
-        if entry.is_null() {
-            Self::Null
-        } else if entry.is_false() {
-            Self::Bool(false)
-        } else if entry.is_true() {
-            Self::Bool(true)
-        } else if entry.is_number() {
-            let ptr = entry.offset();
-            let data = &data[ptr..ptr + 9];
-            Self::Number(NumberRef { data })
-        } else if entry.is_string() {
-            let ptr = entry.offset();
-            let len = (&data[ptr..]).get_u32_ne() as usize;
-            // SAFETY: we don't check for utf8 validity because it's expensive
-            let payload = unsafe { std::str::from_utf8_unchecked(&data[ptr + 4..ptr + 4 + len]) };
-            Self::String(payload)
-        } else if entry.is_array() {
-            let ptr = entry.offset();
-            Self::Array(ArrayRef::from_slice(data, ptr))
-        } else if entry.is_object() {
-            let ptr = entry.offset();
-            Self::Object(ObjectRef::from_slice(data, ptr))
-        } else {
-            panic!("invalid entry");
+        match entry.tag() {
+            Entry::NULL_TAG => Self::Null,
+            Entry::FALSE_TAG => Self::Bool(false),
+            Entry::TRUE_TAG => Self::Bool(true),
+            Entry::NUMBER_TAG => {
+                let ptr = entry.offset();
+                let data = &data[ptr..ptr + 9];
+                Self::Number(NumberRef { data })
+            }
+            Entry::STRING_TAG => {
+                let ptr = entry.offset();
+                let len = (&data[ptr..]).get_u32_ne() as usize;
+                // SAFETY: we don't check for utf8 validity because it's expensive
+                let payload =
+                    unsafe { std::str::from_utf8_unchecked(&data[ptr + 4..ptr + 4 + len]) };
+                Self::String(payload)
+            }
+            Entry::ARRAY_TAG => {
+                let ptr = entry.offset();
+                Self::Array(ArrayRef::from_slice(data, ptr))
+            }
+            Entry::OBJECT_TAG => {
+                let ptr = entry.offset();
+                Self::Object(ObjectRef::from_slice(data, ptr))
+            }
+            _ => panic!("invalid entry"),
         }
     }
 
