@@ -62,29 +62,24 @@ impl Entry {
         Self(Self::TRUE_TAG)
     }
 
-    pub const fn number() -> Self {
-        Self(Self::NUMBER_TAG)
+    pub const fn number(offset: usize) -> Self {
+        assert!(offset <= Self::LEN_MASK as usize, "offset too large");
+        Self(Self::NUMBER_TAG | (offset as u32))
     }
 
-    pub const fn string() -> Self {
-        Self(Self::STRING_TAG)
+    pub const fn string(offset: usize) -> Self {
+        assert!(offset <= Self::LEN_MASK as usize, "offset too large");
+        Self(Self::STRING_TAG | (offset as u32))
     }
 
-    pub const fn array() -> Self {
-        Self(Self::ARRAY_TAG)
+    pub const fn array(offset: usize) -> Self {
+        assert!(offset <= Self::LEN_MASK as usize, "offset too large");
+        Self(Self::ARRAY_TAG | (offset as u32))
     }
 
-    pub const fn object() -> Self {
-        Self(Self::OBJECT_TAG)
-    }
-
-    pub const fn with_offset(self, offset: usize) -> Self {
-        assert!(offset <= Self::LEN_MASK as usize);
-        Self((self.0 & Self::TYPE_MASK) | (offset as u32))
-    }
-
-    pub const fn apply_offset(self, base: *const u8) -> *const u8 {
-        unsafe { base.sub(self.offset()) }
+    pub const fn object(offset: usize) -> Self {
+        assert!(offset <= Self::LEN_MASK as usize, "offset too large");
+        Self(Self::OBJECT_TAG | (offset as u32))
     }
 }
 

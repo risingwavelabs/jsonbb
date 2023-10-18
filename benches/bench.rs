@@ -214,7 +214,7 @@ fn bench_index_array(c: &mut Criterion) {
         b.iter(|| {
             let mut buffer = Vec::with_capacity(array.len());
             for range in index.iter() {
-                let value = unsafe { ValueRef::from_bytes(&array[range.clone()]) };
+                let value = ValueRef::from_bytes(&array[range.clone()]);
                 let mut builder = jsonbb::Builder::<&mut Vec<u8>>::new(&mut buffer);
                 let new_value = value.get("name").unwrap();
                 builder.add_value(new_value);

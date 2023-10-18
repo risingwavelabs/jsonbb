@@ -21,13 +21,13 @@
 //!                ^ptr
 //! - Array
 //!     - ptr: 0x5 | offset
-//!     - payload: [elem] x n + n (u32) + start_offset (u32) + [eptr] x n
-//!                ^start       ^ptr
+//!     - payload: [elem] x n + [eptr] x n + n (u32) + len (u32)
+//!                ^start                                        ^ptr
 //! - Object
 //!     - ptr: 0x6 | offset
-//!     - payload: [key, value] x n + n (u32) + start_offset (u32) + [kptr, vptr] x n
-//!                ^start             ^ptr
-//!                start_offset = ptr - start
+//!     - payload: [key, value] x n + [kptr, vptr] x n + n (u32) + len (u32)
+//!                ^start                                                    ^ptr
+//!                len = ptr - start
 
 use std::fmt;
 

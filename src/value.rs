@@ -24,7 +24,7 @@ impl Value {
             for v in iter {
                 b.add_value(v);
             }
-            b.finish_array();
+            b.end_array();
         })
     }
 
@@ -36,7 +36,7 @@ impl Value {
                 b.add_string(k);
                 b.add_value(v);
             }
-            b.finish_object();
+            b.end_object();
         })
     }
 
@@ -51,10 +51,7 @@ impl Value {
     }
 
     /// Creates a JSON `Value` from a slice of bytes.
-    ///
-    /// # Safety
-    /// The bytes must be a valid jsonbb encoding.
-    pub unsafe fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
         Self {
             buffer: bytes.into(),
         }
@@ -62,7 +59,7 @@ impl Value {
 
     /// Returns a reference to the value.
     pub fn as_ref(&self) -> ValueRef<'_> {
-        unsafe { ValueRef::from_bytes(&self.buffer) }
+        ValueRef::from_bytes(&self.buffer)
     }
 
     /// Returns the value as bytes.
@@ -366,7 +363,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 for v in a.iter() {
                     self.add_serde_value(v);
                 }
-                self.finish_array();
+                self.end_array();
             }
             serde_json::Value::Object(o) => {
                 self.begin_object();
@@ -374,7 +371,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                     self.add_string(k);
                     self.add_serde_value(v);
                 }
-                self.finish_object()
+                self.end_object()
             }
         }
     }

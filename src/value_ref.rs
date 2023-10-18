@@ -1,5 +1,4 @@
 use std::hash::{Hash, Hasher};
-use std::marker::PhantomData;
 
 use super::*;
 use bytes::Buf;
@@ -27,14 +26,9 @@ pub enum ValueRef<'a> {
 
 impl<'a> ValueRef<'a> {
     /// Creates a `ValueRef` from a byte slice.
-    ///
-    /// # Safety
-    ///
-    /// The bytes must be a valid JSON value created by `Builder`.
-    pub unsafe fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
-        let base = bytes.as_ptr().add(bytes.len() - 4);
-        let entry = (base as *const Entry).read();
-        ValueRef::from_raw(base, entry)
+    pub fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
+        let entry = Entry((&bytes[bytes.len() - 4..]).get_u32_ne());
+        ValueRef::from_slice(bytes, entry)
     }
 
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
@@ -114,7 +108,7 @@ impl<'a> ValueRef<'a> {
         self.into()
     }
 
-    pub(crate) unsafe fn from_raw(base: *const u8, entry: Entry) -> Self {
+    pub(crate) fn from_slice(data: &'a [u8], entry: Entry) -> Self {
         if entry.is_null() {
             Self::Null
         } else if entry.is_false() {
@@ -122,22 +116,21 @@ impl<'a> ValueRef<'a> {
         } else if entry.is_true() {
             Self::Bool(true)
         } else if entry.is_number() {
-            let ptr = entry.apply_offset(base);
-            let data = std::slice::from_raw_parts(ptr, 9);
+            let ptr = entry.offset();
+            let data = &data[ptr..ptr + 9];
             Self::Number(NumberRef { data })
         } else if entry.is_string() {
-            let ptr = entry.apply_offset(base);
-            let len = (ptr as *const u32).read() as usize;
-            let payload = unsafe {
-                std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr.add(4), len))
-            };
+            let ptr = entry.offset();
+            let len = (&data[ptr..]).get_u32_ne() as usize;
+            // SAFETY: we don't check for utf8 validity because it's expensive
+            let payload = unsafe { std::str::from_utf8_unchecked(&data[ptr + 4..ptr + 4 + len]) };
             Self::String(payload)
         } else if entry.is_array() {
-            let ptr = entry.apply_offset(base);
-            Self::Array(ArrayRef::from_raw(ptr))
+            let ptr = entry.offset();
+            Self::Array(ArrayRef::from_slice(data, ptr))
         } else if entry.is_object() {
-            let ptr = entry.apply_offset(base);
-            Self::Object(ObjectRef::from_raw(ptr))
+            let ptr = entry.offset();
+            Self::Object(ObjectRef::from_slice(data, ptr))
         } else {
             panic!("invalid entry");
         }
@@ -312,31 +305,27 @@ impl Hash for NumberRef<'_> {
 #[derive(Clone, Copy)]
 pub struct ArrayRef<'a> {
     // # layout
-    //      v----------------------\
-    // | elements | len | size | [eptr] x len |
-    // |   size   |  4  |  4   |   4 x len    |
-    // |<------------ as_slice -------------->|
-    //            ^ptr
-    ptr: *const u8,
-    _mark: PhantomData<&'a u8>,
+    //      v---------\
+    // | elements | [eptr] x len | len | size |
+    // |          |   4 x len    |  4  |  4   |
+    // |<----------- data (size) ------------>|^ptr
+    data: &'a [u8],
 }
-
-unsafe impl<'a> Send for ArrayRef<'a> {}
-unsafe impl<'a> Sync for ArrayRef<'a> {}
 
 impl<'a> ArrayRef<'a> {
     /// Returns the element at the given index, or `None` if the index is out of bounds.
     pub fn get(self, index: usize) -> Option<ValueRef<'a>> {
-        if index >= self.len() {
+        let len = self.len();
+        if index >= len {
             return None;
         }
-        let entry = unsafe { ((self.ptr as *const u32).add(2 + index) as *const Entry).read() };
-        Some(unsafe { ValueRef::from_raw(self.ptr, entry) })
+        let entry = Entry((&self.data[self.data.len() - 8 - 4 * (len - index)..]).get_u32_ne());
+        Some(ValueRef::from_slice(self.data, entry))
     }
 
     /// Returns the number of elements in the array.
     pub fn len(self) -> usize {
-        unsafe { (self.ptr as *const u32).read() as usize }
+        (&self.data[self.data.len() - 8..]).get_u32_ne() as usize
     }
 
     /// Returns `true` if the array contains no elements.
@@ -346,33 +335,21 @@ impl<'a> ArrayRef<'a> {
 
     /// Returns an iterator over the array's elements.
     pub fn iter(self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
-        let base = self.ptr;
-        unsafe {
-            let entries = std::slice::from_raw_parts(
-                (self.ptr as *const u32).add(2) as *const Entry,
-                self.len(),
-            );
-            entries.iter().map(move |e| ValueRef::from_raw(base, *e))
-        }
+        let len = self.len();
+        let mut entries = &self.data[self.data.len() - 8 - 4 * len..];
+        (0..len).map(move |_| ValueRef::from_slice(self.data, Entry(entries.get_u32_ne())))
     }
 
     /// Returns the entire array as a slice.
     pub(crate) fn as_slice(self) -> &'a [u8] {
-        let len = self.len();
-        let elem_len = self.elements_len();
-        unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 4 * len) }
+        self.data
     }
 
-    /// Returns the length of the array's elements, in bytes.
-    pub(crate) fn elements_len(self) -> usize {
-        unsafe { (self.ptr as *const u32).add(1).read() as usize }
-    }
-
-    /// Creates an `ArrayRef` from a raw pointer.
-    unsafe fn from_raw(ptr: *const u8) -> Self {
+    /// Creates an `ArrayRef` from a slice.
+    fn from_slice(data: &'a [u8], end: usize) -> Self {
+        let size = (&data[end - 4..end]).get_u32_ne() as usize;
         Self {
-            ptr,
-            _mark: PhantomData,
+            data: &data[end - size..end],
         }
     }
 }
@@ -429,37 +406,32 @@ impl Hash for ArrayRef<'_> {
 #[derive(Clone, Copy)]
 pub struct ObjectRef<'a> {
     // # layout
-    //      v-v--------------------\-----\
-    // | elements | len | size | [kptr, vptr] x len |
-    // |   size   |  4  |  4   |     4 x 2 x len    |
-    // |<--------------- as_slice ----------------->|
-    //            ^ptr
-    ptr: *const u8,
-    _mark: PhantomData<&'a u8>,
+    //      v-v------ \-----\
+    // | elements | [kptr, vptr] x len | len | size |
+    // |          |     4 x 2 x len    |  4  |  4   |
+    // |<-------------- data (size) --------------->|^ptr
+    data: &'a [u8],
 }
-
-unsafe impl<'a> Send for ObjectRef<'a> {}
-unsafe impl<'a> Sync for ObjectRef<'a> {}
 
 impl<'a> ObjectRef<'a> {
     /// Returns the value associated with the given key, or `None` if the key is not present.
     pub fn get(self, key: &str) -> Option<ValueRef<'a>> {
         // do binary search since entries are ordered by key
-        let idx = self
-            .entries()
-            .binary_search_by_key(&key, |&(kentry, _)| unsafe {
-                ValueRef::from_raw(self.ptr, kentry)
+        let entries = self.entries();
+        let idx = entries
+            .binary_search_by_key(&key, |&(kentry, _)| {
+                ValueRef::from_slice(self.data, kentry)
                     .as_str()
                     .expect("key must be string")
             })
             .ok()?;
-        let (_, ventry) = self.entries()[idx];
-        Some(unsafe { ValueRef::from_raw(self.ptr, ventry) })
+        let (_, ventry) = entries[idx];
+        Some(ValueRef::from_slice(self.data, ventry))
     }
 
     /// Returns the number of elements in the object.
     pub fn len(self) -> usize {
-        unsafe { (self.ptr as *const u32).read() as usize }
+        (&self.data[self.data.len() - 8..]).get_u32_ne() as usize
     }
 
     /// Returns `true` if the object contains no elements.
@@ -469,14 +441,11 @@ impl<'a> ObjectRef<'a> {
 
     /// Returns an iterator over the object's key-value pairs.
     pub fn iter(self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
-        let base = self.ptr;
-        unsafe {
-            self.entries().iter().map(move |&(kentry, ventry)| {
-                let k = ValueRef::from_raw(base, kentry);
-                let v = ValueRef::from_raw(base, ventry);
-                (k.as_str().expect("key must be string"), v)
-            })
-        }
+        self.entries().iter().map(move |&(kentry, ventry)| {
+            let k = ValueRef::from_slice(self.data, kentry);
+            let v = ValueRef::from_slice(self.data, ventry);
+            (k.as_str().expect("key must be string"), v)
+        })
     }
 
     /// Returns an iterator over the object's keys.
@@ -491,32 +460,23 @@ impl<'a> ObjectRef<'a> {
 
     /// Returns the entire object as a slice.
     pub(crate) fn as_slice(self) -> &'a [u8] {
-        let len = self.len();
-        let elem_len = self.elements_len();
-        unsafe { std::slice::from_raw_parts(self.ptr.sub(elem_len), elem_len + 4 + 4 + 8 * len) }
+        self.data
     }
 
-    /// Returns the length of the object's elements, in bytes.
-    pub(crate) fn elements_len(self) -> usize {
-        unsafe { (self.ptr as *const u32).add(1).read() as usize }
-    }
-
-    /// Creates an `ArrayRef` from a raw pointer.
-    unsafe fn from_raw(ptr: *const u8) -> Self {
+    /// Creates an `ObjectRef` from a slice.
+    fn from_slice(data: &'a [u8], end: usize) -> Self {
+        let size = (&data[end - 4..end]).get_u32_ne() as usize;
         Self {
-            ptr,
-            _mark: PhantomData,
+            data: &data[end - size..end],
         }
     }
 
     /// Returns the key-value entries.
     fn entries(self) -> &'a [(Entry, Entry)] {
-        unsafe {
-            std::slice::from_raw_parts(
-                (self.ptr as *const u32).add(2) as *const (Entry, Entry),
-                self.len(),
-            )
-        }
+        let len = self.len();
+        let base = self.data.len() - 8 - 8 * len;
+        let slice = &self.data[base..base + 8 * len];
+        unsafe { std::slice::from_raw_parts(slice.as_ptr() as _, len) }
     }
 }
 

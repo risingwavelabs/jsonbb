@@ -147,7 +147,7 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
             {
                 self.begin_array();
                 while visitor.next_element_seed(&mut *self)?.is_some() {}
-                self.finish_array();
+                self.end_array();
                 Ok(())
             }
 
@@ -159,7 +159,7 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
                 while visitor.next_key_seed(&mut *self)?.is_some() {
                     visitor.next_value_seed(&mut *self)?;
                 }
-                self.finish_object();
+                self.end_object();
                 Ok(())
             }
         }

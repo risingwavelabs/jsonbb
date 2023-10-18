@@ -22,8 +22,7 @@ As a binary format, you can extract byte slices from it or read JSON values from
 let jsonbb = value.as_bytes();
 
 // Read a JSON value from a byte slice.
-// SAFETY: The bytes must be a valid jsonbb value.
-let value = unsafe { jsonbb::ValueRef::from_bytes(jsonbb) };
+let value = jsonbb::ValueRef::from_bytes(jsonbb);
 ```
 
 You can use common API to query JSON and then build new JSON values using the `Builder` API.
@@ -35,14 +34,12 @@ let foo = name.get(0).unwrap();
 assert_eq!(foo.as_str().unwrap(), "foo");
 
 // Build a JSON value.
-let mut buffer = vec![];
-let mut builder = jsonbb::Builder::new(&mut buffer);
+let mut builder = jsonbb::Builder::<Vec<u8>>::new();
 builder.begin_object();
 builder.add_string("name");
 builder.add_value(foo);
-builder.finish_object();
-builder.finish();
-let value = unsafe { jsonbb::ValueRef::from_bytes(&buffer) };
+builder.end_object();
+let value = builder.finish();
 assert_eq!(value.to_string(), r#"{"name":"foo"}"#);
 ```
 
