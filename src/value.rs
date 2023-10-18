@@ -1,4 +1,5 @@
 use super::*;
+use bytes::BufMut;
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -201,12 +202,30 @@ impl Value {
     /// # Example
     /// ```
     /// let mut array: jsonbb::Value = "[1]".parse().unwrap();
-    /// let value: jsonbb::Value = 2.into();
-    /// array.array_push(value.as_ref());
-    /// assert_eq!(array.to_string(), "[1,2]");
+    /// array.array_push(jsonbb::Value::from(()).as_ref());
+    /// array.array_push(jsonbb::Value::from(2).as_ref());
+    /// array.array_push(jsonbb::Value::from("str").as_ref());
+    /// assert_eq!(array.to_string(), r#"[1,null,2,"str"]"#);
     /// ```
     pub fn array_push(&mut self, value: ValueRef<'_>) {
-        todo!();
+        let len = self.as_array().expect("not array").len();
+        // The offset to insert the value.
+        let offset = self.buffer.len() - 4 - 4 - 4 - 4 * len;
+        let mut buffer = std::mem::take(&mut self.buffer).into_vec();
+        // reserve space for the value + its entry
+        buffer.reserve_exact(value.capacity() + 4);
+        // remove tailing (len, size, entry)
+        buffer.truncate(buffer.len() - 12);
+        // insert the value
+        buffer.splice(offset..offset, value.as_slice().iter().copied());
+        // push the entry
+        buffer.put_u32_ne(value.make_entry(offset).0);
+        // push (len, size, entry)
+        buffer.put_u32_ne((len + 1) as u32);
+        buffer.put_u32_ne((buffer.len() + 4) as u32);
+        buffer.put_u32_ne(Entry::array(buffer.len()).0);
+        // store the buffer
+        self.buffer = buffer.into();
     }
 
     /// Insert a value into a JSON object.
@@ -224,7 +243,7 @@ impl Value {
     /// object.object_insert("b", value.as_ref());
     /// assert_eq!(object.to_string(), r#"{"a":1,"b":2}"#);
     /// ```
-    pub fn object_insert(&mut self, key: &str, value: ValueRef<'_>) {
+    pub fn object_insert(&mut self, _key: &str, _value: ValueRef<'_>) {
         todo!();
     }
 
@@ -397,15 +416,57 @@ impl From<bool> for Value {
     }
 }
 
+impl From<u8> for Value {
+    fn from(v: u8) -> Self {
+        Self::from(v as u64)
+    }
+}
+
+impl From<u16> for Value {
+    fn from(v: u16) -> Self {
+        Self::from(v as u64)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(v: u32) -> Self {
+        Self::from(v as u64)
+    }
+}
+
 impl From<u64> for Value {
     fn from(v: u64) -> Self {
         Self::from_builder(1 + 8 + 4, |b| b.add_u64(v))
     }
 }
 
+impl From<i8> for Value {
+    fn from(v: i8) -> Self {
+        Self::from(v as i64)
+    }
+}
+
+impl From<i16> for Value {
+    fn from(v: i16) -> Self {
+        Self::from(v as i64)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(v: i32) -> Self {
+        Self::from(v as i64)
+    }
+}
+
 impl From<i64> for Value {
     fn from(v: i64) -> Self {
         Self::from_builder(1 + 8 + 4, |b| b.add_i64(v))
+    }
+}
+
+impl From<f32> for Value {
+    fn from(v: f32) -> Self {
+        Self::from(v as f64)
     }
 }
 

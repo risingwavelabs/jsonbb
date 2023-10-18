@@ -138,16 +138,36 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// Returns the entire value as a slice.
+    pub(crate) fn as_slice(self) -> &'a [u8] {
+        match self {
+            Self::Null => &[],
+            Self::Bool(_) => &[],
+            Self::Number(n) => n.data,
+            Self::String(s) => unsafe {
+                // SAFETY: include the 4 bytes for the length
+                std::slice::from_raw_parts(s.as_ptr().sub(4), s.len() + 4)
+            },
+            Self::Array(a) => a.as_slice(),
+            Self::Object(o) => o.as_slice(),
+        }
+    }
+
+    /// Makes an entry from the value.
+    pub(crate) fn make_entry(self, offset: usize) -> Entry {
+        match self {
+            Self::Null => Entry::null(),
+            Self::Bool(b) => Entry::bool(b),
+            Self::Number(_) => Entry::number(offset),
+            Self::String(_) => Entry::string(offset),
+            Self::Array(_) => Entry::array(offset),
+            Self::Object(_) => Entry::object(offset),
+        }
+    }
+
     /// Returns the capacity to store this value, in bytes.
     pub fn capacity(self) -> usize {
-        match self {
-            Self::Null => 0,
-            Self::Bool(_) => 0,
-            Self::Number(_) => 1 + 8,
-            Self::String(s) => s.len() + 4,
-            Self::Array(a) => a.as_slice().len(),
-            Self::Object(o) => o.as_slice().len(),
-        }
+        self.as_slice().len()
     }
 
     /// Index into a JSON array or object.

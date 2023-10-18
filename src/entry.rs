@@ -33,6 +33,14 @@ impl Entry {
         Self(Self::TRUE_TAG << 29)
     }
 
+    pub const fn bool(b: bool) -> Self {
+        if b {
+            Self::true_()
+        } else {
+            Self::false_()
+        }
+    }
+
     pub const fn number(offset: usize) -> Self {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
         Self((Self::NUMBER_TAG << 29) | (offset as u32))

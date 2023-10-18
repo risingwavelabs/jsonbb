@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use jsonbb::ValueRef;
-use simd_json::ValueAccess;
+use simd_json::{Mutable, ValueAccess};
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
@@ -393,6 +393,56 @@ fn bench_file_index(c: &mut Criterion) {
     }
 }
 
+fn bench_array_push(c: &mut Criterion) {
+    let array = r#"[{"a":"foo"},{"b":"bar"},{"c":"baz"}]"#;
+    let value = r#"{"d":"qqq"}"#;
+
+    let a: jsonbb::Value = array.parse().unwrap();
+    let v: jsonbb::Value = value.parse().unwrap();
+    c.bench_function("array_push/jsonbb", |b| {
+        b.iter_batched(
+            || a.clone(),
+            |mut a| a.array_push(v.as_ref()),
+            BatchSize::SmallInput,
+        )
+    });
+
+    let a: serde_json::Value = array.parse().unwrap();
+    let v: serde_json::Value = value.parse().unwrap();
+    c.bench_function("array_push/serde_json", |b| {
+        b.iter_batched(
+            || a.clone(),
+            |mut a| a.as_array_mut().unwrap().push(v.clone()),
+            BatchSize::SmallInput,
+        )
+    });
+
+    let a = jsonb::parse_value(array.as_bytes()).unwrap().to_vec();
+    let v = jsonb::parse_value(value.as_bytes()).unwrap().to_vec();
+    c.bench_function("array_push/jsonb", |b| {
+        b.iter(|| {
+            let elems = jsonb::array_values(&a).unwrap();
+            let mut buf = Vec::with_capacity(a.len() + v.len());
+            jsonb::build_array(
+                elems.iter().map(|v| v.as_slice()).chain([v.as_slice()]),
+                &mut buf,
+            )
+            .unwrap();
+            buf
+        })
+    });
+
+    let a = simd_json::to_owned_value(&mut Vec::from(array)).unwrap();
+    let v = simd_json::to_owned_value(&mut Vec::from(value)).unwrap();
+    c.bench_function("array_push/simd-json", |b| {
+        b.iter_batched(
+            || a.clone(),
+            |mut a| a.as_array_mut().unwrap().push(v.clone()),
+            BatchSize::SmallInput,
+        )
+    });
+}
+
 /// Iterate over all files in the `./benches/data/` directory.
 fn iter_json_files() -> impl Iterator<Item = (String, String)> {
     std::fs::read_dir("./benches/data/").unwrap().map(|path| {
@@ -414,6 +464,7 @@ criterion_group!(
     bench_index,
     bench_index_array,
     bench_file_index,
-    bench_path
+    bench_path,
+    bench_array_push
 );
 criterion_main!(benches);
