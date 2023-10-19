@@ -123,6 +123,10 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     }
 
     /// Begins an array.
+    ///
+    /// The caller then needs to push the elements and call [`end_array`] to finish the array.
+    ///
+    /// [`end_array`]: #method.end_array
     pub fn begin_array(&mut self) {
         let buffer = self.buffer.as_mut();
         self.container_starts
@@ -146,6 +150,16 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     }
 
     /// Begins an object.
+    ///
+    /// The caller then needs to push the keys and values in the following order:
+    /// ```text
+    /// key-1, value-1, key-2, value-2 ...
+    /// ```
+    /// where each key must be a string.
+    ///
+    /// Finally [`end_object`] must be called to finish the object.
+    ///
+    /// [`end_object`]: #method.end_object
     pub fn begin_object(&mut self) {
         let buffer = self.buffer.as_mut();
         self.container_starts
@@ -153,21 +167,33 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     }
 
     /// Ends an object.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - there is an odd number of entries pushed since the paired [`begin_object`].
+    /// - any key is not a string.
+    ///
+    /// [`begin_object`]: #method.begin_object
     pub fn end_object(&mut self) {
         let buffer = self.buffer.as_mut();
         let (start, npointer) = self.container_starts.pop().unwrap();
-        let base = buffer.len();
+        assert!(
+            (self.pointers.len() - npointer) % 2 == 0,
+            "expected even number of entries"
+        );
         let len = (self.pointers.len() - npointer) / 2;
-        buffer.reserve(8 * len + 4 + 4);
-        for entry in self.pointers.drain(npointer..) {
-            buffer.put_u32_ne(entry.0);
-        }
-        buffer.put_u32_ne(len as u32);
-        buffer.put_u32_ne((buffer.len() - start + 4) as u32);
 
         // sort entries by key
+        // TODO: use `as_chunks_mut` when stabilized
         let entries = unsafe {
-            std::slice::from_raw_parts_mut(buffer.as_ptr().add(base) as *mut (Entry, Entry), len)
+            std::slice::from_raw_parts_mut(
+                self.pointers
+                    .as_mut_ptr()
+                    .add(npointer)
+                    .cast::<(Entry, Entry)>(),
+                len,
+            )
         };
         for (k, _) in entries.iter() {
             assert!(k.is_string(), "key must be string");
@@ -181,6 +207,13 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 std::str::from_utf8_unchecked(&buffer.get_unchecked(offset + 4..offset + 4 + len))
             }
         });
+
+        buffer.reserve(8 * len + 4 + 4);
+        for entry in self.pointers.drain(npointer..) {
+            buffer.put_u32_ne(entry.0);
+        }
+        buffer.put_u32_ne(len as u32);
+        buffer.put_u32_ne((buffer.len() - start + 4) as u32);
 
         let offset = self.offset();
         self.pointers.push(Entry::object(offset));
