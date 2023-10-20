@@ -1,5 +1,5 @@
 use super::*;
-use bytes::BufMut;
+use bytes::{Buf, BufMut};
 use smallvec::SmallVec;
 use std::fmt::{self, Debug, Display};
 
@@ -289,6 +289,22 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     fn offset(&mut self) -> usize {
         self.buffer.as_mut().len() - self.container_starts.last().map_or(0, |&(o, _)| o)
     }
+
+    /// Pops the last value.
+    pub fn pop(&mut self) {
+        let entry = self.pointers.pop().unwrap();
+        if entry == Entry::null() || entry == Entry::false_() || entry == Entry::true_() {
+            // no payload
+            return;
+        }
+        let buffer = self.buffer.as_mut();
+        let new_len = entry.offset() + self.container_starts.last().map_or(0, |&(o, _)| o);
+        buffer.truncate(new_len);
+        if entry.is_array() || entry.is_object() {
+            let len = (&buffer[new_len - 4..]).get_u32_ne() as usize;
+            buffer.truncate(new_len - len);
+        }
+    }
 }
 
 impl Builder<Vec<u8>> {
@@ -309,11 +325,30 @@ impl<'a> Builder<&'a mut Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Value;
+    use crate::{Builder, Value};
 
     #[test]
     fn unique_key() {
         let value: Value = r#"{"a":1,"b":2,"a":3}"#.parse().unwrap();
         assert_eq!(value.to_string(), r#"{"a":3,"b":2}"#);
+    }
+
+    #[test]
+    fn pop() {
+        let mut builder = Builder::<Vec<u8>>::new();
+        builder.begin_array();
+        builder.add_u64(1);
+        builder.add_string("2");
+        builder.add_null();
+        builder.begin_array();
+        builder.add_null();
+        builder.end_array();
+        builder.pop();
+        builder.pop();
+        builder.pop();
+        builder.add_u64(4);
+        builder.end_array();
+        let value = builder.finish();
+        assert_eq!(value.to_string(), "[1,4]");
     }
 }

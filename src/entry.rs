@@ -64,6 +64,14 @@ impl Entry {
     pub const fn is_string(self) -> bool {
         self.0 >> 29 == Self::STRING_TAG
     }
+
+    pub const fn is_array(self) -> bool {
+        self.0 >> 29 == Self::ARRAY_TAG
+    }
+
+    pub const fn is_object(self) -> bool {
+        self.0 >> 29 == Self::OBJECT_TAG
+    }
 }
 
 pub const NUMBER_U64: u8 = 0x1;
