@@ -48,6 +48,7 @@ impl Value {
         let mut builder = Builder::with_capacity(json.len());
         let mut deserializer = serde_json::Deserializer::from_slice(json);
         builder.deserialize(&mut deserializer)?;
+        deserializer.end()?;
         Ok(builder.finish())
     }
 

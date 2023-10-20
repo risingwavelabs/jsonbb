@@ -211,4 +211,11 @@ mod tests {
             .trim()
         );
     }
+
+    #[test]
+    fn expect_end_of_input() {
+        "1f2".parse::<Value>().unwrap_err();
+        "trues".parse::<Value>().unwrap_err();
+        "true, false".parse::<Value>().unwrap_err();
+    }
 }
