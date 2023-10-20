@@ -157,6 +157,8 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// ```
     /// where each key must be a string.
     ///
+    /// Keys are allowed to be duplicated, but the last value will be used.
+    ///
     /// Finally [`end_object`] must be called to finish the object.
     ///
     /// [`end_object`]: #method.end_object
@@ -198,24 +200,42 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         for (k, _) in entries.iter() {
             assert!(k.is_string(), "key must be string");
         }
-        entries.sort_unstable_by_key(|(k, _)| {
+        let entry_to_str = |entry: Entry| {
             // Performance tip: this closure is in hot path, so we use `unsafe` to avoid bound check.
             // SAFETY: the string is pushed by us, so it's valid UTF-8 and the range is valid.
-            let offset = start + k.offset();
+            let offset = start + entry.offset();
             unsafe {
                 let len = buffer.as_ptr().add(offset).cast::<u32>().read_unaligned() as usize;
                 std::str::from_utf8_unchecked(&buffer.get_unchecked(offset + 4..offset + 4 + len))
             }
-        });
+        };
+        entries.sort_by_key(|(k, _)| entry_to_str(*k));
 
-        buffer.reserve(8 * len + 4 + 4);
-        for entry in self.pointers.drain(npointer..) {
-            buffer.put_u32_ne(entry.0);
+        // deduplicate keys
+        let mut prev_key = None;
+        let mut unique_len = 0;
+        for i in 0..len {
+            let key = entry_to_str(entries[i].0);
+            if prev_key != Some(key) {
+                prev_key = Some(key);
+                entries[unique_len] = entries[i];
+                unique_len += 1;
+            } else {
+                entries[unique_len - 1] = entries[i];
+            }
         }
-        buffer.put_u32_ne(len as u32);
+
+        // write entries to buffer
+        buffer.reserve(8 * unique_len + 4 + 4);
+        for (kentry, ventry) in &entries[..unique_len] {
+            buffer.put_u32_ne(kentry.0);
+            buffer.put_u32_ne(ventry.0);
+        }
+        buffer.put_u32_ne(unique_len as u32);
         buffer.put_u32_ne((buffer.len() - start + 4) as u32);
 
         let offset = self.offset();
+        self.pointers.truncate(npointer);
         self.pointers.push(Entry::object(offset));
     }
 
@@ -280,5 +300,16 @@ impl<'a> Builder<&'a mut Vec<u8>> {
     /// Finishes building.
     pub fn finish(self) {
         self.finish_internal();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Value;
+
+    #[test]
+    fn unique_key() {
+        let value: Value = r#"{"a":1,"b":2,"a":3}"#.parse().unwrap();
+        assert_eq!(value.to_string(), r#"{"a":3,"b":2}"#);
     }
 }

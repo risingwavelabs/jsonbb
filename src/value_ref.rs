@@ -432,6 +432,8 @@ pub struct ObjectRef<'a> {
     // | elements | [kptr, vptr] x len | len | size |
     // |          |     4 x 2 x len    |  4  |  4   |
     // |<-------------- data (size) --------------->|^ptr
+    //
+    // entries are ordered by key and each key is unique.
     data: &'a [u8],
 }
 
