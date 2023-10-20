@@ -205,7 +205,9 @@ impl Value {
     /// array.array_push(jsonbb::Value::from(()).as_ref());
     /// array.array_push(jsonbb::Value::from(2).as_ref());
     /// array.array_push(jsonbb::Value::from("str").as_ref());
-    /// assert_eq!(array.to_string(), r#"[1,null,2,"str"]"#);
+    /// array.array_push(jsonbb::Value::array([]).as_ref());
+    /// array.array_push(jsonbb::Value::object([]).as_ref());
+    /// assert_eq!(array.to_string(), r#"[1,null,2,"str",[],{}]"#);
     /// ```
     pub fn array_push(&mut self, value: ValueRef<'_>) {
         let len = self.as_array().expect("not array").len();

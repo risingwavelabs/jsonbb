@@ -160,8 +160,8 @@ impl<'a> ValueRef<'a> {
             Self::Bool(b) => Entry::bool(b),
             Self::Number(_) => Entry::number(offset),
             Self::String(_) => Entry::string(offset),
-            Self::Array(_) => Entry::array(offset),
-            Self::Object(_) => Entry::object(offset),
+            Self::Array(a) => Entry::array(offset + a.as_slice().len()),
+            Self::Object(o) => Entry::object(offset + o.as_slice().len()),
         }
     }
 
