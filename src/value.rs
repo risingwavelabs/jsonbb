@@ -507,4 +507,22 @@ mod tests {
         .unwrap();
         let _value = Value::from(&serde_value);
     }
+
+    #[test]
+    #[should_panic]
+    fn from_nan() {
+        _ = Value::from(f64::NAN);
+    }
+
+    #[test]
+    #[should_panic]
+    fn from_inf() {
+        _ = Value::from(f64::INFINITY);
+    }
+
+    #[test]
+    #[should_panic]
+    fn from_neg_inf() {
+        _ = Value::from(f64::NEG_INFINITY);
+    }
 }

@@ -89,6 +89,10 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds an f64 value to the builder.
     pub fn add_f64(&mut self, v: f64) {
+        assert!(
+            !v.is_nan() && !v.is_infinite(),
+            "Infinite or NaN values are not JSON numbers"
+        );
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
