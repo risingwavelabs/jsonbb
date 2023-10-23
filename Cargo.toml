@@ -2,6 +2,11 @@
 name = "jsonbb"
 version = "0.1.0"
 edition = "2021"
+description = "A binary representation of json value, optimized for parsing and querying."
+repository = "https://github.com/risingwavelabs/jsonbb"
+keywords = ["json"]
+categories = ["data-structures", "encoding"]
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

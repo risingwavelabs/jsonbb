@@ -1,5 +1,8 @@
 # jsonbb
 
+[![Crate](https://img.shields.io/crates/v/jsonbb.svg)](https://crates.io/crates/jsonbb)
+[![Docs](https://docs.rs/jsonbb/badge.svg)](https://docs.rs/jsonbb)
+
 `jsonbb` is a binary representation of JSON value. It is inspired by [JSONB](https://www.postgresql.org/docs/current/datatype-json.html) in PostgreSQL and optimized for fast parsing.
 
 ## Usage
