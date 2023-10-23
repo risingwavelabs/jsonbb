@@ -319,6 +319,11 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             buffer.truncate(new_len - len);
         }
     }
+
+    /// Returns the capacity of the internal buffer, in bytes.
+    pub fn capacity(&mut self) -> usize {
+        self.buffer.as_mut().capacity()
+    }
 }
 
 impl Builder<Vec<u8>> {
