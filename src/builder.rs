@@ -210,7 +210,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             let offset = start + entry.offset();
             unsafe {
                 let len = buffer.as_ptr().add(offset).cast::<u32>().read_unaligned() as usize;
-                std::str::from_utf8_unchecked(&buffer.get_unchecked(offset + 4..offset + 4 + len))
+                std::str::from_utf8_unchecked(buffer.get_unchecked(offset + 4..offset + 4 + len))
             }
         };
         entries.sort_by_key(|(k, _)| entry_to_str(*k));

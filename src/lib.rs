@@ -1,33 +1,100 @@
 //! A JSONB-like binary format for JSON.
 //!
+//! # Usage
 //!
-//! # Format
+//! `jsonbb` provides an API similar to `serde_json` for constructing and querying JSON values.
 //!
-//! ptr: type (3 bits) | offset (29 bits)
+//! ```
+//! // Deserialize a JSON value from a string of JSON text.
+//! let value: jsonbb::Value = r#"{"name": ["foo", "bar"]}"#.parse().unwrap();
 //!
-//! - Null
-//!     - ptr: 0x0
-//!     - payload: []
-//! - Bool
-//!     - ptr: 0x1 (false) / 0x2 (true)
-//!     - payload: []
-//! - Number
-//!     - ptr: 0x3 | offset
-//!     - payload: kind (u8) + u64 / i64 / f64
-//!                ^ptr
-//! - String
-//!     - ptr: 0x4 | offset
-//!     - payload: len (u32) + bytes
-//!                ^ptr
-//! - Array
-//!     - ptr: 0x5 | offset
-//!     - payload: [elem] x n + [eptr] x n + n (u32) + len (u32)
-//!                ^start                                        ^ptr
-//! - Object
-//!     - ptr: 0x6 | offset
-//!     - payload: [key, value] x n + [kptr, vptr] x n + n (u32) + len (u32)
-//!                ^start                                                    ^ptr
-//!                len = ptr - start
+//! // Serialize a JSON value into JSON text.
+//! let json = value.to_string();
+//! assert_eq!(json, r#"{"name":["foo","bar"]}"#);
+//! ```
+//!
+//! As a binary format, you can extract byte slices from it or read JSON values from byte slices.
+//!
+//! ```
+//! # let value: jsonbb::Value = r#"{"name": ["foo", "bar"]}"#.parse().unwrap();
+//! // Get the underlying byte slice of a JSON value.
+//! let bytes = value.as_bytes();
+//!
+//! // Read a JSON value from a byte slice.
+//! let value = jsonbb::ValueRef::from_bytes(bytes);
+//! ```
+//!
+//! You can use the [`get`] API to subscript a JSON and then build a new JSON using the [`Builder`] API.
+//!
+//! ```
+//! # let value: jsonbb::Value = r#"{"name": ["foo", "bar"]}"#.parse().unwrap();
+//! // Subscript a JSON value.
+//! let name = value.get("name").unwrap();
+//! let foo = name.get(0).unwrap();
+//! assert_eq!(foo.as_str().unwrap(), "foo");
+//!
+//! // Build a JSON value.
+//! let mut builder = jsonbb::Builder::<Vec<u8>>::new();
+//! builder.begin_object();
+//! builder.add_string("name");
+//! builder.add_value(foo);
+//! builder.end_object();
+//! let value = builder.finish();
+//! assert_eq!(value.to_string(), r#"{"name":"foo"}"#);
+//! ```
+//!
+//! [`get`]: ValueRef::get
+//!
+//! # Encoding Format
+//!
+//! `jsonbb` stores JSON values in contiguous memory. By avoiding dynamic memory allocation, it is
+//! more cache-friendly and provides efficient **parsing** and **querying** performance.
+//!
+//! It has the following key features:
+//!
+//! 1. Memory Continuity: The content of any JSON subtree is stored contiguously, allowing for
+//! efficient copying through `memcpy`. This leads to highly efficient indexing operations.
+//!
+//! 2. Post-Order Traversal: JSON nodes are stored in post-order traversal sequence. When parsing
+//! JSON strings, output can be sequentially written to the buffer without additional memory
+//! allocation and movement. This results in highly efficient parsing operations.
+//!
+//! Each JSON node consists of a fixed-size **entry** and a variable-length **payload**.
+//! Each entry is 4 bytes, with 3 bits storing the node type and 29 bits storing the offset of
+//! the payload.
+//!
+//! ```text
+//! entry: type (3 bits) | offset (29 bits)
+//!
+//! # Null
+//! entry: 0x0
+//! payload: []
+//!
+//! # Bool
+//! entry: 0x1 (false) / 0x2 (true)
+//! payload: []
+//!
+//! # Number
+//! entry: 0x3 | offset
+//! payload: kind (u8) + u64 / i64 / f64
+//!          ^ptr
+//!
+//! # String
+//! entry: 0x4 | offset
+//! payload: len (u32) + bytes
+//!          ^ptr
+//!
+//! # Array
+//! entry: 0x5 | offset
+//! payload: [elem] x n + [entry] x n + n (u32) + len (u32)
+//!          ^start                                        ^ptr
+//!
+//! # Object
+//! entry: 0x6 | offset
+//! payload: [key, value] x n + [kentry, ventry] x n + n (u32) + len (u32)
+//!          ^start                                                       ^ptr
+//! where:   len = ptr - start
+//! ```
 
 use std::fmt;
 

@@ -231,25 +231,6 @@ impl Value {
         self.buffer = buffer.into();
     }
 
-    /// Insert a value into a JSON object.
-    ///
-    /// This function is `O(N)` where N is the number of keys in the object.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the value is not an object.
-    ///
-    /// # Example
-    /// ```
-    /// let mut object: jsonbb::Value = r#"{"a":1}"#.parse().unwrap();
-    /// let value: jsonbb::Value = 2.into();
-    /// object.object_insert("b", value.as_ref());
-    /// assert_eq!(object.to_string(), r#"{"a":1,"b":2}"#);
-    /// ```
-    pub fn object_insert(&mut self, _key: &str, _value: ValueRef<'_>) {
-        todo!();
-    }
-
     fn from_builder(capacity: usize, f: impl FnOnce(&mut Builder)) -> Self {
         let mut builder = Builder::with_capacity(capacity);
         f(&mut builder);
