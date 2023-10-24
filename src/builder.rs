@@ -41,6 +41,16 @@ impl Default for Builder<Vec<u8>> {
     }
 }
 
+impl<W: Clone> Clone for Builder<W> {
+    fn clone(&self) -> Self {
+        Builder {
+            buffer: self.buffer.clone(),
+            pointers: self.pointers.clone(),
+            container_starts: self.container_starts.clone(),
+        }
+    }
+}
+
 impl Builder<Vec<u8>> {
     /// Creates a new [`Builder`].
     pub fn new() -> Self {
@@ -319,14 +329,14 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             buffer.truncate(new_len - len);
         }
     }
-
-    /// Returns the capacity of the internal buffer, in bytes.
-    pub fn capacity(&mut self) -> usize {
-        self.buffer.as_mut().capacity()
-    }
 }
 
 impl Builder<Vec<u8>> {
+    /// Returns the capacity of the internal buffer, in bytes.
+    pub fn capacity(&self) -> usize {
+        self.buffer.capacity()
+    }
+
     /// Finishes building.
     pub fn finish(self) -> Value {
         Value {
