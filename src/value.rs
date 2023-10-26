@@ -66,6 +66,17 @@ impl Value {
         Ok(builder.finish())
     }
 
+    /// Deserialize an instance of `Value` from bytes of JSON text.
+    #[cfg(feature = "simd-json")]
+    pub fn from_text_mut(json: &mut [u8]) -> simd_json::Result<Self> {
+        use ::serde::de::DeserializeSeed;
+
+        let mut builder = Builder::with_capacity(json.len());
+        let mut deserializer = simd_json::Deserializer::from_slice(json)?;
+        builder.deserialize(&mut deserializer)?;
+        Ok(builder.finish())
+    }
+
     /// Creates a JSON `Value` from a slice of bytes.
     pub fn from_bytes(bytes: &[u8]) -> Self {
         Self {

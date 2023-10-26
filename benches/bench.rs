@@ -21,6 +21,14 @@ fn bench_parse(c: &mut Criterion) {
         c.bench_function(&format!("{filename} parse/jsonbb"), |b| {
             b.iter(|| json.parse::<jsonbb::Value>().unwrap())
         });
+        #[cfg(feature = "simd-json")]
+        c.bench_function(&format!("{filename} parse/jsonbb-simd"), |b| {
+            b.iter_batched(
+                || Vec::from(json.clone()),
+                |mut data| (jsonbb::Value::from_text_mut(&mut data).unwrap(), data),
+                BatchSize::SmallInput,
+            )
+        });
         c.bench_function(&format!("{filename} parse/serde_json"), |b| {
             b.iter(|| json.parse::<serde_json::Value>().unwrap())
         });
@@ -30,7 +38,7 @@ fn bench_parse(c: &mut Criterion) {
         c.bench_function(&format!("{filename} parse/simd-json-owned"), |b| {
             b.iter_batched(
                 || Vec::from(json.clone()),
-                |mut data| simd_json::to_owned_value(&mut data).unwrap(),
+                |mut data| (simd_json::to_owned_value(&mut data).unwrap(), data),
                 BatchSize::SmallInput,
             )
         });
@@ -38,7 +46,18 @@ fn bench_parse(c: &mut Criterion) {
             b.iter_batched(
                 || Vec::from(json.clone()),
                 |mut data| {
-                    simd_json::to_borrowed_value(&mut data).unwrap();
+                    simd_json::to_borrowed_value(&mut data).unwrap(); // drop is counted
+                    data
+                },
+                BatchSize::SmallInput,
+            )
+        });
+        c.bench_function(&format!("{filename} parse/simd-json-tape"), |b| {
+            b.iter_batched(
+                || Vec::from(json.clone()),
+                |mut data| {
+                    simd_json::to_tape(&mut data).unwrap(); // drop is counted
+                    data
                 },
                 BatchSize::SmallInput,
             )
