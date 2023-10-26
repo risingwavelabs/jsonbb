@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `ObjectRef::contains_key`.
+- Add `to_value`.
 
 ### Fixed
 

@@ -120,5 +120,6 @@ mod value_ref;
 
 pub use self::builder::*;
 use self::entry::*;
+pub use self::serde::*;
 pub use self::value::*;
 pub use self::value_ref::*;
