@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2023-10-23
+## [0.1.1] - 2023-10-26
+
+### Fixed
+
+- Remove data of duplicate keys when building objects.
+
+## [0.1.0] - 2023-10-25
 
 - Initial release.

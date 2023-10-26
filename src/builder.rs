@@ -253,6 +253,45 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             }
         }
 
+        // remove data if there are duplicates
+        if unique_len != len {
+            let data = &mut buffer[start..];
+            // get the index order by offset
+            // TODO: reuse buffer to avoid allocation
+            let mut indices = (0..unique_len).collect::<Vec<_>>();
+            indices.sort_unstable_by_key(|&i| entries[i].0.offset());
+            // compact data and update offset
+            let mut new_offset = 0;
+            for i in indices {
+                // get data range
+                let (k, v) = &mut entries[i];
+                let begin = k.offset();
+                let end = if v.is_number() {
+                    v.offset() + 9
+                } else if v.is_string() {
+                    v.offset() + 4 + (&data[v.offset()..]).get_u32_ne() as usize
+                } else if v.is_array() || v.is_object() {
+                    v.offset()
+                } else {
+                    // null, false, true: no data for value
+                    begin + 4 + (&data[begin..]).get_u32_ne() as usize
+                };
+                // move data and update entry
+                if begin != new_offset {
+                    // eprintln!("move {:?} to {}", begin..end, new_offset);
+                    data.copy_within(begin..end, new_offset);
+                    // update entry
+                    let sub = begin - new_offset;
+                    k.set_offset(new_offset);
+                    if v.offset() != 0 {
+                        v.set_offset(v.offset() - sub);
+                    }
+                }
+                new_offset += end - begin;
+            }
+            buffer.truncate(start + new_offset);
+        }
+
         // write entries to buffer
         buffer.reserve(8 * unique_len + 4 + 4);
         for (kentry, ventry) in &entries[..unique_len] {
@@ -358,8 +397,14 @@ mod tests {
 
     #[test]
     fn unique_key() {
-        let value: Value = r#"{"a":1,"b":2,"a":3}"#.parse().unwrap();
-        assert_eq!(value.to_string(), r#"{"a":3,"b":2}"#);
+        let value: Value =
+            r#"{"a":1,"b":2,"c":3,"d":4,"e":5,"e":{},"d":[0],"c":"c","b":1,"a":null}"#
+                .parse()
+                .unwrap();
+        assert_eq!(
+            value.to_string(),
+            r#"{"a":null,"b":1,"c":"c","d":[0],"e":{}}"#
+        );
     }
 
     #[test]

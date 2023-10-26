@@ -75,6 +75,10 @@ impl Entry {
         Self((Self::OBJECT_TAG << 29) | (offset as u32))
     }
 
+    pub const fn is_number(self) -> bool {
+        self.0 >> 29 == Self::NUMBER_TAG
+    }
+
     pub const fn is_string(self) -> bool {
         self.0 >> 29 == Self::STRING_TAG
     }
@@ -85,6 +89,11 @@ impl Entry {
 
     pub const fn is_object(self) -> bool {
         self.0 >> 29 == Self::OBJECT_TAG
+    }
+
+    pub fn set_offset(&mut self, offset: usize) {
+        assert!(offset <= Self::LEN_MASK as usize, "offset too large");
+        self.0 = (self.tag() << 29) | (offset as u32);
     }
 }
 
