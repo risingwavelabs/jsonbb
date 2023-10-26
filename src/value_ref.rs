@@ -453,6 +453,14 @@ pub struct ObjectRef<'a> {
 
 impl<'a> ObjectRef<'a> {
     /// Returns the value associated with the given key, or `None` if the key is not present.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// let object = json.as_object().unwrap();
+    /// assert!(object.get("a").is_some());
+    /// assert!(object.get("c").is_none());
+    /// ```
     pub fn get(self, key: &str) -> Option<ValueRef<'a>> {
         // do binary search since entries are ordered by key
         let entries = self.entries();
@@ -467,17 +475,59 @@ impl<'a> ObjectRef<'a> {
         Some(ValueRef::from_slice(self.data, ventry))
     }
 
+    /// Returns `true` if the object contains a value for the specified key.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// let object = json.as_object().unwrap();
+    /// assert_eq!(object.contains_key("a"), true);
+    /// assert_eq!(object.contains_key("c"), false);
+    /// ```
+    pub fn contains_key(self, key: &str) -> bool {
+        // do binary search since entries are ordered by key
+        let entries = self.entries();
+        entries
+            .binary_search_by_key(&key, |&(kentry, _)| {
+                ValueRef::from_slice(self.data, kentry)
+                    .as_str()
+                    .expect("key must be string")
+            })
+            .is_ok()
+    }
+
     /// Returns the number of elements in the object.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// let object = json.as_object().unwrap();
+    /// assert_eq!(object.len(), 2);
+    /// ```
     pub fn len(self) -> usize {
         (&self.data[self.data.len() - 8..]).get_u32_ne() as usize
     }
 
     /// Returns `true` if the object contains no elements.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"a": 1, "b": 2}"#.parse().unwrap();
+    /// let object = json.as_object().unwrap();
+    /// assert_eq!(object.is_empty(), false);
+    /// ```
     pub fn is_empty(self) -> bool {
         self.len() == 0
     }
 
     /// Returns an iterator over the object's key-value pairs.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"b": 2, "a": 1}"#.parse().unwrap();
+    /// let kvs: Vec<_> = json.as_object().unwrap().iter().map(|(k, v)| (k, v.as_u64().unwrap())).collect();
+    /// assert_eq!(kvs, [("a", 1), ("b", 2)]);
+    /// ```
     pub fn iter(self) -> impl ExactSizeIterator<Item = (&'a str, ValueRef<'a>)> {
         self.entries().iter().map(move |&(kentry, ventry)| {
             let k = ValueRef::from_slice(self.data, kentry);
@@ -487,11 +537,25 @@ impl<'a> ObjectRef<'a> {
     }
 
     /// Returns an iterator over the object's keys.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"b": 2, "a": 1}"#.parse().unwrap();
+    /// let keys: Vec<_> = json.as_object().unwrap().keys().collect();
+    /// assert_eq!(keys, ["a", "b"]);
+    /// ```
     pub fn keys(self) -> impl ExactSizeIterator<Item = &'a str> {
         self.iter().map(|(k, _)| k)
     }
 
     /// Returns an iterator over the object's values.
+    ///
+    /// # Examples
+    /// ```
+    /// let json: jsonbb::Value = r#"{"b": 2, "a": 1}"#.parse().unwrap();
+    /// let values: Vec<_> = json.as_object().unwrap().values().map(|v| v.as_u64().unwrap()).collect();
+    /// assert_eq!(values, [1, 2]);
+    /// ```
     pub fn values(self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         self.iter().map(|(_, v)| v)
     }
