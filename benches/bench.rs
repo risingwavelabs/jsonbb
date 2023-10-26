@@ -27,12 +27,24 @@ fn bench_parse(c: &mut Criterion) {
         c.bench_function(&format!("{filename} parse/jsonb"), |b| {
             b.iter(|| jsonb::parse_value(json.as_bytes()).unwrap().to_vec())
         });
-        c.bench_function(&format!("{filename} parse/simd-json"), |b| {
+        c.bench_function(&format!("{filename} parse/simd-json-owned"), |b| {
             b.iter_batched(
                 || Vec::from(json.clone()),
                 |mut data| simd_json::to_owned_value(&mut data).unwrap(),
                 BatchSize::SmallInput,
             )
+        });
+        c.bench_function(&format!("{filename} parse/simd-json-borrowed"), |b| {
+            b.iter_batched(
+                || Vec::from(json.clone()),
+                |mut data| {
+                    simd_json::to_borrowed_value(&mut data).unwrap();
+                },
+                BatchSize::SmallInput,
+            )
+        });
+        c.bench_function(&format!("{filename} parse/serde_json-no-build"), |b| {
+            b.iter(|| serde_json::from_str::<serde::de::IgnoredAny>(&json).unwrap())
         });
 
         println!("{filename} size/text:\t{}", json.len());
