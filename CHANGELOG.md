@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1] - 2023-10-26
+## [0.1.1] - 2023-10-27
 
 ### Added
 
 - Add `ObjectRef::contains_key`.
 - Add `to_value`.
+- Add feature `serde-json` and `Value::from_text_mut`.
 
 ### Fixed
 

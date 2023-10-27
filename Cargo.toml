@@ -14,13 +14,13 @@ license = "Apache-2.0"
 bytes = "1"
 serde = "1"
 serde_json = "1"
-simd-json = { version = "0.12", optional = true }
+simd-json = { version = "0.13", optional = true }
 smallvec = "1"
 
 [dev-dependencies]
 criterion = "0.5"
 jsonb = "0.3"
-simd-json = "0.12"
+simd-json = "0.13"
 
 [[bench]]
 name = "bench"
