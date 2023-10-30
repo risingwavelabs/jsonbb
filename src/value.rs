@@ -491,6 +491,12 @@ impl From<&str> for Value {
     }
 }
 
+impl From<&[u8]> for Value {
+    fn from(s: &[u8]) -> Self {
+        Self::from_bytes(s)
+    }
+}
+
 impl From<ValueRef<'_>> for Value {
     fn from(v: ValueRef<'_>) -> Self {
         Self::from_builder(v.capacity() + 4, |b| b.add_value(v))
