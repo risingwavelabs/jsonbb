@@ -77,7 +77,7 @@ impl Value {
         Ok(builder.finish())
     }
 
-    /// Creates a JSON `Value` from a slice of bytes.
+    /// Creates a JSON `Value` from bytes of jsonbb encoding.
     pub fn from_bytes(bytes: &[u8]) -> Self {
         Self {
             buffer: bytes.into(),
@@ -491,6 +491,12 @@ impl From<&str> for Value {
     }
 }
 
+/// Creates a `Value` from bytes of jsonbb encoding.
+///
+/// If you want to create a `Value` from JSON text, use [`FromStr`] or [`from_text`] instead.
+///
+/// [`from_text`]: #method.from_text
+/// [`FromStr`]: #method.from_str
 impl From<&[u8]> for Value {
     fn from(s: &[u8]) -> Self {
         Self::from_bytes(s)
