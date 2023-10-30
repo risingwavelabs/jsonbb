@@ -851,9 +851,9 @@ mod tests {
         test(42u32, "42");
         test(42u64, "42");
         test(42u128, "42");
-        // FIXME: actual "3.140000104904175"
-        // test(3.14f32, "3.14");
-        test(3.14f64, "3.14");
+        // FIXME: actual "1.2300000190734863"
+        // test(1.23f32, "1.23");
+        test(1.23f64, "1.23");
 
         test('a', "\"a\"");
         test("hello", "\"hello\"");

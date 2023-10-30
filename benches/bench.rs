@@ -14,7 +14,7 @@
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use jsonbb::ValueRef;
-use simd_json::{Mutable, ValueAccess};
+use simd_json::prelude::{ValueArrayAccess, ValueAsMutContainer, ValueObjectAccess};
 
 fn bench_parse(c: &mut Criterion) {
     for (filename, json) in iter_json_files() {
