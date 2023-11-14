@@ -190,6 +190,51 @@ impl Value {
         self.as_ref().as_object()
     }
 
+    /// Returns true if the value is a null. Returns false otherwise.
+    pub fn is_null(self) -> bool {
+        self.as_ref().is_null()
+    }
+
+    /// Returns true if the value is a boolean. Returns false otherwise.
+    pub fn is_bool(self) -> bool {
+        self.as_ref().is_bool()
+    }
+
+    /// Returns true if the value is a number. Returns false otherwise.
+    pub fn is_number(self) -> bool {
+        self.as_ref().is_number()
+    }
+
+    /// Returns true if the value is an integer between zero and `u64::MAX`.
+    pub fn is_u64(self) -> bool {
+        self.as_ref().is_u64()
+    }
+
+    /// Returns true if the value is an integer between `i64::MIN` and `i64::MAX`.
+    pub fn is_i64(self) -> bool {
+        self.as_ref().is_i64()
+    }
+
+    /// Returns true if the value is a number that can be represented by f64.
+    pub fn is_f64(self) -> bool {
+        self.as_ref().is_f64()
+    }
+
+    /// Returns true if the value is a string. Returns false otherwise.
+    pub fn is_string(self) -> bool {
+        self.as_ref().is_string()
+    }
+
+    /// Returns true if the value is an array. Returns false otherwise.
+    pub fn is_array(self) -> bool {
+        self.as_ref().is_array()
+    }
+
+    /// Returns true if the value is an object. Returns false otherwise.
+    pub fn is_object(self) -> bool {
+        self.as_ref().is_object()
+    }
+
     /// Returns the capacity of the internal buffer, in bytes.
     pub fn capacity(&self) -> usize {
         self.buffer.len()

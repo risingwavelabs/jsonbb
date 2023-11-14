@@ -45,6 +45,51 @@ impl<'a> ValueRef<'a> {
         ValueRef::from_slice(bytes, entry)
     }
 
+    /// Returns true if the value is a null. Returns false otherwise.
+    pub fn is_null(self) -> bool {
+        matches!(self, Self::Null)
+    }
+
+    /// Returns true if the value is a boolean. Returns false otherwise.
+    pub fn is_bool(self) -> bool {
+        matches!(self, Self::Bool(_))
+    }
+
+    /// Returns true if the value is a number. Returns false otherwise.
+    pub fn is_number(self) -> bool {
+        matches!(self, Self::Number(_))
+    }
+
+    /// Returns true if the value is an integer between zero and `u64::MAX`.
+    pub fn is_u64(self) -> bool {
+        matches!(self, Self::Number(n) if n.is_u64())
+    }
+
+    /// Returns true if the value is an integer between `i64::MIN` and `i64::MAX`.
+    pub fn is_i64(self) -> bool {
+        matches!(self, Self::Number(n) if n.is_i64())
+    }
+
+    /// Returns true if the value is a number that can be represented by f64.
+    pub fn is_f64(self) -> bool {
+        matches!(self, Self::Number(n) if n.is_f64())
+    }
+
+    /// Returns true if the value is a string. Returns false otherwise.
+    pub fn is_string(self) -> bool {
+        matches!(self, Self::String(_))
+    }
+
+    /// Returns true if the value is an array. Returns false otherwise.
+    pub fn is_array(self) -> bool {
+        matches!(self, Self::Array(_))
+    }
+
+    /// Returns true if the value is an object. Returns false otherwise.
+    pub fn is_object(self) -> bool {
+        matches!(self, Self::Object(_))
+    }
+
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
     pub fn as_null(self) -> Option<()> {
         match self {
@@ -253,17 +298,41 @@ impl NumberRef<'_> {
 
     /// If the number is an integer, returns the associated u64. Returns `None` otherwise.
     pub fn as_u64(self) -> Option<u64> {
-        self.to_number().as_u64()
+        match self.data[0] {
+            NUMBER_U64 => Some((&self.data[1..]).get_u64_ne()),
+            _ => None,
+        }
     }
 
     /// If the number is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(self) -> Option<i64> {
-        self.to_number().as_i64()
+        match self.data[0] {
+            NUMBER_I64 => Some((&self.data[1..]).get_i64_ne()),
+            _ => None,
+        }
     }
 
     /// If the number is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(self) -> Option<f64> {
-        self.to_number().as_f64()
+        match self.data[0] {
+            NUMBER_F64 => Some((&self.data[1..]).get_f64_ne()),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the number can be represented by u64.
+    pub fn is_u64(self) -> bool {
+        self.data[0] == NUMBER_U64
+    }
+
+    /// Returns true if the number can be represented by i64.
+    pub fn is_i64(self) -> bool {
+        self.data[0] == NUMBER_I64
+    }
+
+    /// Returns true if the number can be represented by f64.
+    pub fn is_f64(self) -> bool {
+        self.data[0] == NUMBER_F64
     }
 }
 
