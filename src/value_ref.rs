@@ -51,7 +51,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// Returns true if the value is a boolean. Returns false otherwise.
-    pub fn is_bool(self) -> bool {
+    pub fn is_boolean(self) -> bool {
         matches!(self, Self::Bool(_))
     }
 
@@ -313,17 +313,17 @@ impl NumberRef<'_> {
 
     /// Returns true if the number can be represented by u64.
     pub fn is_u64(self) -> bool {
-        self.data[0] == NUMBER_U64
+        self.to_number().is_u64()
     }
 
     /// Returns true if the number can be represented by i64.
     pub fn is_i64(self) -> bool {
-        self.data[0] == NUMBER_I64
+        self.to_number().is_i64()
     }
 
     /// Returns true if the number can be represented by f64.
     pub fn is_f64(self) -> bool {
-        self.data[0] == NUMBER_F64
+        self.to_number().is_f64()
     }
 }
 

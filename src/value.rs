@@ -191,36 +191,99 @@ impl Value {
     }
 
     /// Returns true if the value is a null. Returns false otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(()).is_null());
+    ///
+    /// // The boolean `false` is not null.
+    /// assert!(!jsonbb::Value::from(false).is_null());
+    /// ```
     pub fn is_null(self) -> bool {
         self.as_ref().is_null()
     }
 
     /// Returns true if the value is a boolean. Returns false otherwise.
-    pub fn is_bool(self) -> bool {
-        self.as_ref().is_bool()
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(false).is_boolean());
+    ///
+    /// // The string `"false"` is a string, not a boolean.
+    /// assert!(!jsonbb::Value::from("false").is_boolean());
+    /// ```
+    pub fn is_boolean(self) -> bool {
+        self.as_ref().is_boolean()
     }
 
     /// Returns true if the value is a number. Returns false otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(1).is_number());
+    ///
+    /// // The string `"1"` is a string, not a number.
+    /// assert!(!jsonbb::Value::from("1").is_number());
+    /// ```
     pub fn is_number(self) -> bool {
         self.as_ref().is_number()
     }
 
     /// Returns true if the value is an integer between zero and `u64::MAX`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(1i64).is_u64());
+    ///
+    /// // Negative integer.
+    /// assert!(!jsonbb::Value::from(-1i64).is_u64());
+    /// ```
     pub fn is_u64(self) -> bool {
         self.as_ref().is_u64()
     }
 
     /// Returns true if the value is an integer between `i64::MIN` and `i64::MAX`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(1u64).is_i64());
+    ///
+    /// // Greater than i64::MAX.
+    /// assert!(!jsonbb::Value::from(u64::MAX).is_i64());
+    /// ```
     pub fn is_i64(self) -> bool {
         self.as_ref().is_i64()
     }
 
     /// Returns true if the value is a number that can be represented by f64.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from(0f64).is_f64());
+    ///
+    /// // Integer
+    /// assert!(!jsonbb::Value::from(1i64).is_f64());
+    /// ```
     pub fn is_f64(self) -> bool {
         self.as_ref().is_f64()
     }
 
     /// Returns true if the value is a string. Returns false otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// assert!(jsonbb::Value::from("string").is_string());
+    ///
+    /// // The boolean `false` is not a string.
+    /// assert!(!jsonbb::Value::from(false).is_string());
+    /// ```
     pub fn is_string(self) -> bool {
         self.as_ref().is_string()
     }
