@@ -458,6 +458,12 @@ impl Hash for Value {
     }
 }
 
+impl Default for Value {
+    fn default() -> Self {
+        Self::null()
+    }
+}
+
 impl From<serde_json::Value> for Value {
     fn from(value: serde_json::Value) -> Self {
         Self::from(&value)
