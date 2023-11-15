@@ -470,6 +470,18 @@ impl From<&serde_json::Value> for Value {
     }
 }
 
+impl From<serde_json::Number> for Value {
+    fn from(value: serde_json::Number) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&serde_json::Number> for Value {
+    fn from(n: &serde_json::Number) -> Self {
+        Self::from_builder(0, |b| b.add_serde_number(n))
+    }
+}
+
 impl From<Value> for serde_json::Value {
     fn from(value: Value) -> Self {
         value.as_ref().into()
@@ -482,17 +494,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         match value {
             serde_json::Value::Null => self.add_null(),
             serde_json::Value::Bool(b) => self.add_bool(*b),
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_u64() {
-                    self.add_u64(i)
-                } else if let Some(i) = n.as_i64() {
-                    self.add_i64(i)
-                } else if let Some(f) = n.as_f64() {
-                    self.add_f64(f)
-                } else {
-                    panic!("invalid number");
-                }
-            }
+            serde_json::Value::Number(n) => self.add_serde_number(n),
             serde_json::Value::String(s) => self.add_string(s),
             serde_json::Value::Array(a) => {
                 self.begin_array();
@@ -509,6 +511,19 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 }
                 self.end_object()
             }
+        }
+    }
+
+    /// Adds a serde `Number`.
+    fn add_serde_number(&mut self, n: &serde_json::Number) {
+        if let Some(i) = n.as_u64() {
+            self.add_u64(i)
+        } else if let Some(i) = n.as_i64() {
+            self.add_i64(i)
+        } else if let Some(f) = n.as_f64() {
+            self.add_f64(f)
+        } else {
+            panic!("invalid number");
         }
     }
 }
@@ -557,6 +572,12 @@ impl From<u64> for Value {
     }
 }
 
+impl From<usize> for Value {
+    fn from(v: usize) -> Self {
+        Self::from(v as u64)
+    }
+}
+
 impl From<i8> for Value {
     fn from(v: i8) -> Self {
         Self::from(v as i64)
@@ -578,6 +599,12 @@ impl From<i32> for Value {
 impl From<i64> for Value {
     fn from(v: i64) -> Self {
         Self::from_builder(1 + 8 + 4, |b| b.add_i64(v))
+    }
+}
+
+impl From<isize> for Value {
+    fn from(v: isize) -> Self {
+        Self::from(v as u64)
     }
 }
 
