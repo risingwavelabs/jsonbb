@@ -110,10 +110,9 @@
 //! where:   len = ptr - start
 //! ```
 
-use std::fmt;
-
 mod builder;
 mod entry;
+mod macros;
 mod serde;
 mod value;
 mod value_ref;
@@ -123,3 +122,7 @@ use self::entry::*;
 pub use self::serde::*;
 pub use self::value::*;
 pub use self::value_ref::*;
+
+// for `json!` macro
+#[doc(hidden)]
+pub use serde_json;
