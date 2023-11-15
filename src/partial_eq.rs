@@ -38,7 +38,7 @@ impl PartialEq<str> for ValueRef<'_> {
 
 impl PartialEq<&str> for ValueRef<'_> {
     fn eq(&self, other: &&str) -> bool {
-        eq_str(*self, *other)
+        eq_str(*self, other)
     }
 }
 
@@ -50,7 +50,7 @@ impl PartialEq<ValueRef<'_>> for str {
 
 impl PartialEq<ValueRef<'_>> for &str {
     fn eq(&self, other: &ValueRef<'_>) -> bool {
-        eq_str(*other, *self)
+        eq_str(*other, self)
     }
 }
 
