@@ -298,26 +298,17 @@ impl NumberRef<'_> {
 
     /// If the number is an integer, returns the associated u64. Returns `None` otherwise.
     pub fn as_u64(self) -> Option<u64> {
-        match self.data[0] {
-            NUMBER_U64 => Some((&self.data[1..]).get_u64_ne()),
-            _ => None,
-        }
+        self.to_number().as_u64()
     }
 
     /// If the number is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(self) -> Option<i64> {
-        match self.data[0] {
-            NUMBER_I64 => Some((&self.data[1..]).get_i64_ne()),
-            _ => None,
-        }
+        self.to_number().as_i64()
     }
 
     /// If the number is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(self) -> Option<f64> {
-        match self.data[0] {
-            NUMBER_F64 => Some((&self.data[1..]).get_f64_ne()),
-            _ => None,
-        }
+        self.to_number().as_f64()
     }
 
     /// Returns true if the number can be represented by u64.
