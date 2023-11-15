@@ -1,5 +1,5 @@
 use crate::core::spec::functions::{
-    FunctionExpr, FunctionExprArg, FunctionValidationError, Validated,
+    Function, FunctionExpr, FunctionExprArg, FunctionValidationError, Validated,
 };
 use nom::character::complete::char;
 use nom::combinator::{cut, map_res};
@@ -79,7 +79,7 @@ pub(crate) fn parse_function_expr(input: &str) -> PResult<FunctionExpr<Validated
             ),
         ),
         |(name, args)| {
-            #[cfg(feature = "functions")]
+            // #[cfg(feature = "functions")]
             for f in inventory::iter::<Function> {
                 if f.name == name {
                     (f.validator)(args.as_slice())?;

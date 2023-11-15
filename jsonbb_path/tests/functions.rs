@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use jsonbb::{json, Value};
+use jsonbb::{json, Value, ValueRef};
 use jsonbb_path::core::spec::functions::{NodesType, ValueType};
 use jsonbb_path::{JsonPath, JsonPathExt};
 #[cfg(feature = "trace")]
@@ -113,7 +113,7 @@ fn get_some_books() -> Value {
     ])
 }
 
-#[serde_json_path::function]
+#[jsonbb_path::function]
 fn first(nodes: NodesType) -> ValueType {
     match nodes.first() {
         Some(v) => ValueType::Node(v),
@@ -121,9 +121,13 @@ fn first(nodes: NodesType) -> ValueType {
     }
 }
 
-#[serde_json_path::function]
+#[jsonbb_path::function]
 fn sort<'a>(nodes: NodesType<'a>, on: ValueType<'a>) -> NodesType<'a> {
-    if let Some(Ok(path)) = on.as_value().and_then(Value::as_str).map(JsonPath::parse) {
+    if let Some(Ok(path)) = on
+        .as_value()
+        .and_then(ValueRef::as_str)
+        .map(JsonPath::parse)
+    {
         let mut nl = nodes.all();
         nl.sort_by(|a, b| {
             if let (Some(a), Some(b)) = (
@@ -131,8 +135,8 @@ fn sort<'a>(nodes: NodesType<'a>, on: ValueType<'a>) -> NodesType<'a> {
                 b.json_path(&path).exactly_one().ok(),
             ) {
                 match (a, b) {
-                    (Value::Bool(b1), Value::Bool(b2)) => b1.cmp(b2),
-                    (Value::Number(n1), Value::Number(n2)) => {
+                    (ValueRef::Bool(b1), ValueRef::Bool(b2)) => b1.cmp(&b2),
+                    (ValueRef::Number(n1), ValueRef::Number(n2)) => {
                         if let (Some(f1), Some(f2)) = (n1.as_f64(), n2.as_f64()) {
                             f1.partial_cmp(&f2).unwrap_or(Ordering::Equal)
                         } else if let (Some(u1), Some(u2)) = (n1.as_u64(), n2.as_u64()) {
@@ -143,7 +147,7 @@ fn sort<'a>(nodes: NodesType<'a>, on: ValueType<'a>) -> NodesType<'a> {
                             Ordering::Equal
                         }
                     }
-                    (Value::String(s1), Value::String(s2)) => s1.cmp(s2),
+                    (ValueRef::String(s1), ValueRef::String(s2)) => s1.cmp(s2),
                     _ => Ordering::Equal,
                 }
             } else {
@@ -156,12 +160,16 @@ fn sort<'a>(nodes: NodesType<'a>, on: ValueType<'a>) -> NodesType<'a> {
     }
 }
 
-#[serde_json_path::function]
+#[jsonbb_path::function]
 fn get<'a>(node: ValueType<'a>, path: ValueType<'a>) -> ValueType<'a> {
-    if let Some(Ok(path)) = path.as_value().and_then(Value::as_str).map(JsonPath::parse) {
+    if let Some(Ok(path)) = path
+        .as_value()
+        .and_then(ValueRef::as_str)
+        .map(JsonPath::parse)
+    {
         match node {
-            ValueType::Node(v) => v
-                .json_path(&path)
+            ValueType::Node(v) => path
+                .query(v)
                 .exactly_one()
                 .map(ValueType::Node)
                 .unwrap_or_default(),
