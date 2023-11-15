@@ -239,7 +239,7 @@
 //!
 //! Filters also allow you to make use of [functions] in your queries:
 //!
-//! ```ignore
+//! ```rust
 //! # use jsonbb::json;
 //! # use jsonbb_path::JsonPath;
 //! # fn main() -> Result<(), jsonbb_path::ParseError> {
@@ -370,7 +370,7 @@ pub use core::spec::functions;
 /// ]);
 /// let path = JsonPath::parse("$[? first(@.*) == 4 ]")?;
 /// let node = path.query(value.as_ref()).exactly_one()?;
-/// assert_eq!(node, &json!([4, 5, 6]));
+/// assert_eq!(node, json!([4, 5, 6]).as_ref());
 /// # Ok(())
 /// # }
 /// ```
@@ -425,5 +425,14 @@ pub use core::spec::functions;
 ///
 /// [`inventory`]: https://docs.rs/inventory/latest/inventory/
 #[doc(inline)]
-#[cfg(feature = "functions")]
+// #[cfg(feature = "functions")]
 pub use jsonbb_path_macros::function;
+
+// allow using `#[function]` in this crate
+extern crate self as jsonbb_path;
+
+// for use in macros
+#[doc(hidden)]
+pub use inventory;
+#[doc(hidden)]
+pub use once_cell;

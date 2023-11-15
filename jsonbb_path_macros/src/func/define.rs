@@ -21,7 +21,7 @@ pub(crate) fn expand(attrs: FunctionMacroArgs, input: ItemFn) -> TokenStream {
     };
 
     let inventory = quote! {
-        ::serde_json_path_macros::inventory
+        ::jsonbb_path::inventory
     };
 
     TokenStream::from(quote! {

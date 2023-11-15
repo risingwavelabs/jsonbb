@@ -1,3 +1,3 @@
 [workspace]
-members = ["jsonbb", "jsonbb_path"]
+members = ["jsonbb", "jsonbb_path", "jsonbb_path_macros"]
 resolver = "2"

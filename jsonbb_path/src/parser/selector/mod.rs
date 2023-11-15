@@ -14,7 +14,7 @@ use super::primitive::string::parse_string_literal;
 use super::PResult;
 
 pub(crate) mod filter;
-// pub(crate) mod function;
+pub(crate) mod function;
 pub(crate) mod slice;
 
 #[cfg_attr(feature = "trace", tracing::instrument(level = "trace", parent = None, ret, err))]

@@ -51,13 +51,13 @@ fn extract_json_path_type(p: &Path) -> Result<TokenStream> {
         .ok_or_else(|| Error::new(p.span(), "expected a type identifier"))?;
     let ts = match p_seg.ident.to_string().as_str() {
         "NodesType" => quote! {
-            ::serde_json_path_macros::serde_json_path_core::spec::functions::NodesType
+            ::jsonbb_path::core::spec::functions::NodesType
         },
         "ValueType" => quote! {
-            ::serde_json_path_macros::serde_json_path_core::spec::functions::ValueType
+            ::jsonbb_path::core::spec::functions::ValueType
         },
         "LogicalType" => quote! {
-            ::serde_json_path_macros::serde_json_path_core::spec::functions::LogicalType
+            ::jsonbb_path::core::spec::functions::LogicalType
         },
         other => {
             return Err(Error::new(
@@ -91,7 +91,7 @@ pub fn extract_components(input: Signature) -> Result<Components> {
             } else {
                 return Err(Error::new(
                     ty.span(),
-                    "return type can only be one of the serde_json_path types: NodesType, \
+                    "return type can only be one of the jsonbb_path types: NodesType, \
                         ValueType, or LogicalType",
                 ));
             }
@@ -124,7 +124,7 @@ pub fn extract_components(input: Signature) -> Result<Components> {
                 } else {
                     return Err(Error::new(
                         ty.span(),
-                        "argument type can only be one of the serde_json_path types: NodesType, \
+                        "argument type can only be one of the jsonbb_path types: NodesType, \
                                 ValueType, or LogicalType",
                     ));
                 };

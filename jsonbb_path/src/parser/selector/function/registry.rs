@@ -28,7 +28,7 @@ fn value_length(value: ValueRef<'_>) -> Option<usize> {
     }
 }
 
-#[serde_json_path_macros::register(target = LENGTH_FUNC)]
+#[jsonbb_path_macros::register(target = LENGTH_FUNC)]
 fn length(value: ValueType) -> ValueType {
     match value {
         ValueType::Value(v) => value_length(v.as_ref()),
@@ -38,12 +38,12 @@ fn length(value: ValueType) -> ValueType {
     .map_or(ValueType::Nothing, |l| ValueType::Value(l.into()))
 }
 
-#[serde_json_path_macros::register(target = COUNT_FUNC)]
+#[jsonbb_path_macros::register(target = COUNT_FUNC)]
 fn count(nodes: NodesType) -> ValueType {
     nodes.len().into()
 }
 
-#[serde_json_path_macros::register(name = "match", target = MATCH_FUNC)]
+#[jsonbb_path_macros::register(name = "match", target = MATCH_FUNC)]
 fn match_func(value: ValueType, rgx: ValueType) -> LogicalType {
     match (value.as_value(), rgx.as_value()) {
         (Some(ValueRef::String(s)), Some(ValueRef::String(r))) => {
@@ -56,7 +56,7 @@ fn match_func(value: ValueType, rgx: ValueType) -> LogicalType {
     }
 }
 
-#[serde_json_path_macros::register(target = SEARCH_FUNC)]
+#[jsonbb_path_macros::register(target = SEARCH_FUNC)]
 fn search(value: ValueType, rgx: ValueType) -> LogicalType {
     match (value.as_value(), rgx.as_value()) {
         (Some(ValueRef::String(s)), Some(ValueRef::String(r))) => Regex::new(r)
@@ -67,7 +67,7 @@ fn search(value: ValueType, rgx: ValueType) -> LogicalType {
     }
 }
 
-#[serde_json_path_macros::register(target = VALUE_FUNC)]
+#[jsonbb_path_macros::register(target = VALUE_FUNC)]
 fn value(nodes: NodesType) -> ValueType {
     if nodes.len() > 1 {
         ValueType::Nothing

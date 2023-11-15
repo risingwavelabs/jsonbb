@@ -1,5 +1,7 @@
-# serde_json_path_macros
+# jsonbb_path_macros
 
-Macros for the [`serde_json_path`][sjp] crate.
+Macros for the [`jsonbb_path`][sjp] crate.
 
-[sjp]: https://crates.io/crates/serde_json_path
+Modified from [`serde_json_path_macros`](https://crates.io/crates/serde_json_path_macros).
+
+[sjp]: https://crates.io/crates/jsonbb_path

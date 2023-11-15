@@ -45,10 +45,10 @@ pub(crate) fn expand(input: ItemFn, name_str: Option<LitStr>) -> Result<Expanded
     let args_len = args.len();
     // Generate token streams for some needed types:
     let lazy = quote! {
-        ::serde_json_path_macros::once_cell::sync::Lazy
+        ::jsonbb_path::once_cell::sync::Lazy
     };
     let core = quote! {
-        ::serde_json_path_macros::serde_json_path_core::spec::functions
+        ::jsonbb_path::core::spec::functions
     };
     let res = quote! {
         std::result::Result
