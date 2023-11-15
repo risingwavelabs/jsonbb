@@ -1,13 +1,13 @@
 use std::fmt::Display;
 use std::ops::Deref;
 
+use crate::core::spec::query::{Query, QueryKind};
+use crate::core::spec::segment::QuerySegment;
 use nom::character::complete::char;
 use nom::combinator::all_consuming;
 use nom::error::{ContextError, ErrorKind, FromExternalError, ParseError};
 use nom::Offset;
 use nom::{branch::alt, combinator::map, multi::many0, sequence::preceded, IResult};
-use serde_json_path_core::spec::query::{Query, QueryKind};
-use serde_json_path_core::spec::segment::QuerySegment;
 
 use self::segment::parse_segment;
 
@@ -162,7 +162,7 @@ pub(crate) fn parse_query_main(input: &str) -> PResult<Query> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json_path_core::spec::{
+    use crate::core::spec::{
         query::QueryKind,
         segment::Segment,
         selector::{name::Name, Selector},

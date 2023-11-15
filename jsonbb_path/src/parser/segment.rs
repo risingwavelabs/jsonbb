@@ -1,3 +1,5 @@
+use crate::core::spec::segment::{QuerySegment, QuerySegmentKind, Segment};
+use crate::core::spec::selector::Selector;
 use nom::bytes::complete::tag;
 use nom::character::complete::char;
 use nom::error::context;
@@ -10,8 +12,6 @@ use nom::{
     multi::{fold_many0, separated_list1},
     sequence::{delimited, pair, preceded},
 };
-use serde_json_path_core::spec::segment::{QuerySegment, QuerySegmentKind, Segment};
-use serde_json_path_core::spec::selector::Selector;
 
 use super::selector::{parse_selector, parse_wildcard_selector};
 use super::utils::cut_with;
@@ -145,8 +145,8 @@ mod tests {
     #[cfg(feature = "trace")]
     use test_log::test;
 
+    use crate::core::spec::selector::{index::Index, name::Name, slice::Slice, Selector};
     use nom::combinator::all_consuming;
-    use serde_json_path_core::spec::selector::{index::Index, name::Name, slice::Slice, Selector};
 
     use super::{
         parse_child_long_hand, parse_child_segment, parse_descendant_segment,

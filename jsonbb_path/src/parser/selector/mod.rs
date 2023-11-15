@@ -1,10 +1,10 @@
+use crate::core::spec::selector::index::Index;
+use crate::core::spec::selector::name::Name;
+use crate::core::spec::selector::Selector;
 use nom::branch::alt;
 use nom::character::complete::char;
 use nom::combinator::map;
 use nom::error::context;
-use serde_json_path_core::spec::selector::index::Index;
-use serde_json_path_core::spec::selector::name::Name;
-use serde_json_path_core::spec::selector::Selector;
 
 use self::filter::parse_filter;
 use self::slice::parse_array_slice;
@@ -14,7 +14,7 @@ use super::primitive::string::parse_string_literal;
 use super::PResult;
 
 pub(crate) mod filter;
-pub(crate) mod function;
+// pub(crate) mod function;
 pub(crate) mod slice;
 
 #[cfg_attr(feature = "trace", tracing::instrument(level = "trace", parent = None, ret, err))]
@@ -68,7 +68,7 @@ pub(crate) fn parse_selector(input: &str) -> PResult<Selector> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json_path_core::spec::selector::{name::Name, slice::Slice};
+    use crate::core::spec::selector::{name::Name, slice::Slice};
 
     use super::{parse_selector, parse_wildcard_selector, Index, Selector};
 

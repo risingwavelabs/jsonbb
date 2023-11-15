@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use serde_json::{json, Value};
-use serde_json_path::{JsonPath, JsonPathExt};
-use serde_json_path_core::spec::functions::{NodesType, ValueType};
+use jsonbb::{json, Value};
+use jsonbb_path::core::spec::functions::{NodesType, ValueType};
+use jsonbb_path::{JsonPath, JsonPathExt};
 #[cfg(feature = "trace")]
 use test_log::test;
 
@@ -14,7 +14,7 @@ fn test_length() {
         "a string that is even longer!",
     ]);
     let query = JsonPath::parse("$[?length(@) > 14]").unwrap();
-    let nodes = query.query(&value);
+    let nodes = query.query(value.as_ref());
     println!("{nodes:#?}");
     assert_eq!(nodes.len(), 2);
 }
@@ -32,7 +32,7 @@ fn test_count() {
         {"foo": [1, 2]},
     ]);
     let path = JsonPath::parse("$[?count(@.foo.*) > 1]").unwrap();
-    let q = path.query(&value);
+    let q = path.query(value.as_ref());
     assert_eq!(1, q.len());
 }
 
@@ -43,7 +43,7 @@ fn test_count_singular_query() {
         {"foo": "baz"},
     ]);
     let path = JsonPath::parse("$[? count(@.foo) == 1]").unwrap();
-    let q = path.query(&value);
+    let q = path.query(value.as_ref());
     println!("{q:#?}");
     assert_eq!(q.len(), 2);
 }
@@ -65,7 +65,7 @@ fn simpsons_characters() -> Value {
 fn test_match() {
     let value = simpsons_characters();
     let path = JsonPath::parse("$[? match(@.name, 'M[A-Za-z ]*Simpson')].name").unwrap();
-    let nodes = path.query(&value);
+    let nodes = path.query(value.as_ref());
     println!("{nodes:#?}");
     assert_eq!(2, nodes.len());
     assert_eq!("Marge Simpson", nodes.first().unwrap().as_str().unwrap(),);
@@ -75,7 +75,7 @@ fn test_match() {
 fn test_search() {
     let value = simpsons_characters();
     let path = JsonPath::parse("$[? search(@.name, 'Flanders')]").unwrap();
-    let nodes = path.query(&value);
+    let nodes = path.query(value.as_ref());
     println!("{nodes:#?}");
     assert_eq!(3, nodes.len());
 }
@@ -179,7 +179,7 @@ fn get<'a>(node: ValueType<'a>, path: ValueType<'a>) -> ValueType<'a> {
 fn custom_first_function() {
     let value = get_some_books();
     let path = JsonPath::parse("$[? first(@.books.*.author) == 'Alexandre Dumas']").unwrap();
-    let node = path.query(&value).exactly_one().unwrap();
+    let node = path.query(value.as_ref()).exactly_one().unwrap();
     println!("{node:#?}");
     assert_eq!(
         "War and Peace",
@@ -191,7 +191,7 @@ fn custom_first_function() {
 fn function_as_argument() {
     let value = get_some_books();
     let path = JsonPath::parse("$[? length(first(@.books.*.title)) == 18 ]").unwrap();
-    let node = path.query(&value).exactly_one().unwrap();
+    let node = path.query(value.as_ref()).exactly_one().unwrap();
     println!("{node:#?}");
     assert_eq!(
         "The Brothers Karamazov",
@@ -208,7 +208,7 @@ fn combine_custom_functions() {
         "$[? get(first(sort(@.books.*, '$.price')), '$.title') == 'The Brothers Karamazov']",
     )
     .unwrap();
-    let node = path.query(&value).exactly_one().unwrap();
+    let node = path.query(value.as_ref()).exactly_one().unwrap();
     println!("{node:#?}");
     assert_eq!(
         "The Brothers Karamazov",

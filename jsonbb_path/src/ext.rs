@@ -1,4 +1,4 @@
-use serde_json::Value;
+use jsonbb::{Value, ValueRef};
 
 use crate::{JsonPath, NodeList};
 
@@ -6,10 +6,10 @@ use crate::{JsonPath, NodeList};
 ///
 /// ## Usage
 /// ```rust
-/// use serde_json::json;
-/// use serde_json_path::{JsonPath, JsonPathExt};
+/// use jsonbb::json;
+/// use jsonbb_path::{JsonPath, JsonPathExt};
 ///
-/// # fn main() -> Result<(), serde_json_path::ParseError> {
+/// # fn main() -> Result<(), jsonbb_path::ParseError> {
 /// let value = json!({"foo": ["bar", "baz"]});
 /// let query = JsonPath::parse("$.foo[*]")?;
 /// let nodes = value.json_path(&query).all();
@@ -24,6 +24,12 @@ pub trait JsonPathExt {
 
 impl JsonPathExt for Value {
     fn json_path(&self, path: &JsonPath) -> NodeList {
-        path.query(self)
+        path.query(self.as_ref())
+    }
+}
+
+impl JsonPathExt for ValueRef<'_> {
+    fn json_path(&self, path: &JsonPath) -> NodeList {
+        path.query(*self)
     }
 }

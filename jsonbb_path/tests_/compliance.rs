@@ -1,8 +1,8 @@
 use std::fs;
 
+use jsonbb::Value;
+use jsonbb_path::JsonPath;
 use serde::Deserialize;
-use serde_json::Value;
-use serde_json_path::JsonPath;
 #[cfg(feature = "trace")]
 use test_log::test;
 
@@ -51,7 +51,7 @@ fn compliace_test_suite() {
             );
         } else {
             let actual = path.expect("valid JSON Path string").query(document).all();
-            let expected = result.iter().collect::<Vec<&Value>>();
+            let expected = result.iter().map(|v| v.as_ref()).collect::<Vec<&Value>>();
             assert_eq!(
                 expected, actual,
                 "{name}: incorrect result, expected {expected:?}, got {actual:?}"

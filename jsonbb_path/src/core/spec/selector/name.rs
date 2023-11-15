@@ -1,7 +1,7 @@
 //! Name selector for selecting object keys in JSONPath
-use serde_json::Value;
+use jsonbb::ValueRef;
 
-use crate::spec::query::Queryable;
+use crate::core::spec::query::Queryable;
 
 /// Select a single JSON object key
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -22,7 +22,7 @@ impl std::fmt::Display for Name {
 
 impl Queryable for Name {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Name", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, _root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, _root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         if let Some(obj) = current.as_object() {
             obj.get(&self.0).into_iter().collect()
         } else {

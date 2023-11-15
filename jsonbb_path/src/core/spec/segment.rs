@@ -1,5 +1,5 @@
 //! Types representing segments in JSONPath
-use serde_json::Value;
+use jsonbb::ValueRef;
 
 use super::{query::Queryable, selector::Selector};
 
@@ -48,7 +48,7 @@ pub enum QuerySegmentKind {
 
 impl Queryable for QuerySegment {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Path Segment", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         let mut query = self.segment.query(current, root);
         if matches!(self.kind, QuerySegmentKind::Descendant) {
             query.append(&mut descend(self, current, root));
@@ -58,14 +58,18 @@ impl Queryable for QuerySegment {
 }
 
 #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Path Segment", level = "trace", parent = None, ret))]
-fn descend<'b>(segment: &QuerySegment, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+fn descend<'b>(
+    segment: &QuerySegment,
+    current: ValueRef<'b>,
+    root: ValueRef<'b>,
+) -> Vec<ValueRef<'b>> {
     let mut query = Vec::new();
     if let Some(list) = current.as_array() {
-        for v in list {
+        for v in list.iter() {
             query.append(&mut segment.query(v, root));
         }
     } else if let Some(obj) = current.as_object() {
-        for (_, v) in obj {
+        for (_, v) in obj.iter() {
             query.append(&mut segment.query(v, root));
         }
     }
@@ -145,7 +149,7 @@ impl std::fmt::Display for Segment {
 
 impl Queryable for Segment {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Segment", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         let mut query = Vec::new();
         match self {
             Segment::LongHand(selectors) => {
@@ -162,11 +166,11 @@ impl Queryable for Segment {
             }
             Segment::Wildcard => {
                 if let Some(list) = current.as_array() {
-                    for v in list {
+                    for v in list.iter() {
                         query.push(v);
                     }
                 } else if let Some(obj) = current.as_object() {
-                    for (_, v) in obj {
+                    for (_, v) in obj.iter() {
                         query.push(v);
                     }
                 }

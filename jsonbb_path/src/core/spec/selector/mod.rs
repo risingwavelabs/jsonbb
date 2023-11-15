@@ -4,7 +4,7 @@ pub mod index;
 pub mod name;
 pub mod slice;
 
-use serde_json::Value;
+use jsonbb::ValueRef;
 
 use self::{filter::Filter, index::Index, name::Name, slice::Slice};
 
@@ -49,17 +49,17 @@ impl std::fmt::Display for Selector {
 
 impl Queryable for Selector {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Selector", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         let mut query = Vec::new();
         match self {
             Selector::Name(name) => query.append(&mut name.query(current, root)),
             Selector::Wildcard => {
                 if let Some(list) = current.as_array() {
-                    for v in list {
+                    for v in list.iter() {
                         query.push(v);
                     }
                 } else if let Some(obj) = current.as_object() {
-                    for (_, v) in obj {
+                    for (_, v) in obj.iter() {
                         query.push(v);
                     }
                 }

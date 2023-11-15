@@ -1,7 +1,8 @@
 //! Types representing filter selectors in JSONPath
-use serde_json::{Number, Value};
+use jsonbb::{NumberRef, Value, ValueRef};
+use serde_json::Number;
 
-use crate::spec::{
+use crate::core::spec::{
     functions::{FunctionExpr, JsonPathValue, Validated},
     query::{Query, QueryKind, Queryable},
     segment::{QuerySegment, Segment},
@@ -10,14 +11,15 @@ use crate::spec::{
 use super::{index::Index, name::Name, Selector};
 
 mod sealed {
-    use serde_json::Value;
+    use jsonbb::{Value, ValueRef};
 
-    use crate::spec::functions::FunctionExpr;
+    use crate::core::spec::functions::FunctionExpr;
 
     use super::{BasicExpr, ComparisonExpr, ExistExpr, LogicalAndExpr, LogicalOrExpr};
 
     pub trait Sealed {}
     impl Sealed for Value {}
+    impl Sealed for ValueRef<'_> {}
     impl Sealed for LogicalOrExpr {}
     impl Sealed for LogicalAndExpr {}
     impl Sealed for BasicExpr {}
@@ -29,15 +31,21 @@ mod sealed {
 /// Trait for testing a filter type
 pub trait TestFilter: sealed::Sealed {
     /// Test self using the current and root nodes
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool;
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool;
 }
 
 impl TestFilter for Value {
-    fn test_filter<'b>(&self, _current: &'b Value, _root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
+        self.as_ref().test_filter(current, root)
+    }
+}
+
+impl TestFilter for ValueRef<'_> {
+    fn test_filter<'b>(&self, _current: ValueRef<'b>, _root: ValueRef<'b>) -> bool {
         match self {
-            Value::Null => false,
-            Value::Bool(b) => *b,
-            Value::Number(n) => n != &Number::from(0),
+            ValueRef::Null => false,
+            ValueRef::Bool(b) => *b,
+            ValueRef::Number(n) => n.as_u64() != Some(0),
             _ => true,
         }
     }
@@ -55,15 +63,15 @@ impl std::fmt::Display for Filter {
 
 impl Queryable for Filter {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Query Filter", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         if let Some(list) = current.as_array() {
             list.iter()
-                .filter(|v| self.0.test_filter(v, root))
+                .filter(|v| self.0.test_filter(*v, root))
                 .collect()
         } else if let Some(obj) = current.as_object() {
             obj.iter()
                 .map(|(_, v)| v)
-                .filter(|v| self.0.test_filter(v, root))
+                .filter(|v| self.0.test_filter(*v, root))
                 .collect()
         } else {
             vec![]
@@ -93,7 +101,7 @@ impl std::fmt::Display for LogicalOrExpr {
 
 impl TestFilter for LogicalOrExpr {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Test Logical Or Expr", level = "trace", parent = None, ret))]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         self.0.iter().any(|expr| expr.test_filter(current, root))
     }
 }
@@ -117,7 +125,7 @@ impl std::fmt::Display for LogicalAndExpr {
 
 impl TestFilter for LogicalAndExpr {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Test Logical And Expr", level = "trace", parent = None, ret))]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         self.0.iter().all(|expr| expr.test_filter(current, root))
     }
 }
@@ -167,7 +175,7 @@ impl BasicExpr {
 
 impl TestFilter for BasicExpr {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Test Basic Expr", level = "trace", parent = None, ret))]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         match self {
             BasicExpr::Paren(expr) => expr.test_filter(current, root),
             BasicExpr::NotParen(expr) => !expr.test_filter(current, root),
@@ -196,7 +204,7 @@ impl std::fmt::Display for ExistExpr {
 
 impl TestFilter for ExistExpr {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Test Exists Expr", level = "trace", parent = None, ret))]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         !self.0.query(current, root).is_empty()
     }
 }
@@ -214,23 +222,25 @@ pub struct ComparisonExpr {
 
 fn check_equal_to(left: &JsonPathValue, right: &JsonPathValue) -> bool {
     match (left, right) {
-        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_equal_to(v1, v2),
-        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_equal_to(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_equal_to(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => value_equal_to(v1, v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_equal_to(*v1, *v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_equal_to(*v1, v2.as_ref()),
+        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_equal_to(v1.as_ref(), *v2),
+        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => {
+            value_equal_to(v1.as_ref(), v2.as_ref())
+        }
         (JsonPathValue::Nothing, JsonPathValue::Nothing) => true,
         _ => false,
     }
 }
 
-fn value_equal_to(left: &Value, right: &Value) -> bool {
+fn value_equal_to(left: ValueRef<'_>, right: ValueRef<'_>) -> bool {
     match (left, right) {
-        (Value::Number(l), Value::Number(r)) => number_equal_to(l, r),
+        (ValueRef::Number(l), ValueRef::Number(r)) => number_equal_to(l, r),
         _ => left == right,
     }
 }
 
-fn number_equal_to(left: &Number, right: &Number) -> bool {
+fn number_equal_to(left: NumberRef<'_>, right: NumberRef<'_>) -> bool {
     if let (Some(l), Some(r)) = (left.as_f64(), right.as_f64()) {
         l == r
     } else if let (Some(l), Some(r)) = (left.as_i64(), right.as_i64()) {
@@ -242,39 +252,43 @@ fn number_equal_to(left: &Number, right: &Number) -> bool {
     }
 }
 
-fn value_less_than(left: &Value, right: &Value) -> bool {
+fn value_less_than(left: ValueRef<'_>, right: ValueRef<'_>) -> bool {
     match (left, right) {
-        (Value::Number(n1), Value::Number(n2)) => number_less_than(n1, n2),
-        (Value::String(s1), Value::String(s2)) => s1 < s2,
+        (ValueRef::Number(n1), ValueRef::Number(n2)) => number_less_than(n1, n2),
+        (ValueRef::String(s1), ValueRef::String(s2)) => s1 < s2,
         _ => false,
     }
 }
 
 fn check_less_than(left: &JsonPathValue, right: &JsonPathValue) -> bool {
     match (left, right) {
-        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_less_than(v1, v2),
-        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_less_than(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_less_than(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => value_less_than(v1, v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_less_than(*v1, *v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_less_than(*v1, v2.as_ref()),
+        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_less_than(v1.as_ref(), *v2),
+        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => {
+            value_less_than(v1.as_ref(), v2.as_ref())
+        }
         _ => false,
     }
 }
 
-fn value_same_type(left: &Value, right: &Value) -> bool {
-    matches!((left, right), (Value::Null, Value::Null))
-        | matches!((left, right), (Value::Bool(_), Value::Bool(_)))
-        | matches!((left, right), (Value::Number(_), Value::Number(_)))
-        | matches!((left, right), (Value::String(_), Value::String(_)))
-        | matches!((left, right), (Value::Array(_), Value::Array(_)))
-        | matches!((left, right), (Value::Object(_), Value::Object(_)))
+fn value_same_type(left: ValueRef<'_>, right: ValueRef<'_>) -> bool {
+    matches!((left, right), (ValueRef::Null, ValueRef::Null))
+        | matches!((left, right), (ValueRef::Bool(_), ValueRef::Bool(_)))
+        | matches!((left, right), (ValueRef::Number(_), ValueRef::Number(_)))
+        | matches!((left, right), (ValueRef::String(_), ValueRef::String(_)))
+        | matches!((left, right), (ValueRef::Array(_), ValueRef::Array(_)))
+        | matches!((left, right), (ValueRef::Object(_), ValueRef::Object(_)))
 }
 
 fn check_same_type(left: &JsonPathValue, right: &JsonPathValue) -> bool {
     match (left, right) {
-        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_same_type(v1, v2),
-        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_same_type(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_same_type(v1, v2),
-        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => value_same_type(v1, v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Node(v2)) => value_same_type(*v1, *v2),
+        (JsonPathValue::Node(v1), JsonPathValue::Value(v2)) => value_same_type(*v1, v2.as_ref()),
+        (JsonPathValue::Value(v1), JsonPathValue::Node(v2)) => value_same_type(v1.as_ref(), *v2),
+        (JsonPathValue::Value(v1), JsonPathValue::Value(v2)) => {
+            value_same_type(v1.as_ref(), v2.as_ref())
+        }
         _ => false,
     }
 }
@@ -293,7 +307,7 @@ impl std::fmt::Display for ComparisonExpr {
 
 impl TestFilter for ComparisonExpr {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Test Comparison Expr", level = "trace", parent = None, ret))]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         let left = self.left.as_value(current, root);
         let right = self.right.as_value(current, root);
         match self.op {
@@ -318,7 +332,7 @@ impl TestFilter for ComparisonExpr {
     }
 }
 
-fn number_less_than(n1: &Number, n2: &Number) -> bool {
+fn number_less_than(n1: NumberRef<'_>, n2: NumberRef<'_>) -> bool {
     if let (Some(a), Some(b)) = (n1.as_f64(), n2.as_f64()) {
         a < b
     } else if let (Some(a), Some(b)) = (n1.as_i64(), n2.as_i64()) {
@@ -388,8 +402,8 @@ impl Comparable {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Comparable::as_value", level = "trace", parent = None, ret))]
     pub fn as_value<'a, 'b: 'a>(
         &'a self,
-        current: &'b Value,
-        root: &'b Value,
+        current: ValueRef<'b>,
+        root: ValueRef<'b>,
     ) -> JsonPathValue<'a> {
         match self {
             Comparable::Literal(lit) => lit.into(),
@@ -428,10 +442,10 @@ impl<'a> From<&'a Literal> for JsonPathValue<'a> {
         match value {
             // Cloning here seems cheap, certainly for numbers, but it may not be desireable for
             // strings.
-            Literal::Number(n) => JsonPathValue::Value(n.to_owned().into()),
-            Literal::String(s) => JsonPathValue::Value(s.to_owned().into()),
+            Literal::Number(n) => JsonPathValue::Value(n.into()),
+            Literal::String(s) => JsonPathValue::Value(Value::from(s.as_str())),
             Literal::Bool(b) => JsonPathValue::Value(Value::from(*b)),
-            Literal::Null => JsonPathValue::Value(Value::Null),
+            Literal::Null => JsonPathValue::Value(Value::null()),
         }
     }
 }
@@ -514,7 +528,11 @@ pub struct SingularQuery {
 impl SingularQuery {
     /// Evaluate the singular query
     #[cfg_attr(feature = "trace", tracing::instrument(name = "SingularQuery::eval_query", level = "trace", parent = None, ret))]
-    pub fn eval_query<'b>(&self, current: &'b Value, root: &'b Value) -> Option<&'b Value> {
+    pub fn eval_query<'b>(
+        &self,
+        current: ValueRef<'b>,
+        root: ValueRef<'b>,
+    ) -> Option<ValueRef<'b>> {
         let mut target = match self.kind {
             SingularQueryKind::Absolute => root,
             SingularQueryKind::Relative => current,
@@ -559,7 +577,7 @@ impl TryFrom<Query> for SingularQuery {
 }
 
 impl Queryable for SingularQuery {
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         match self.eval_query(current, root) {
             Some(v) => vec![v],
             None => vec![],

@@ -29,9 +29,9 @@
 //! JSONPath query strings can be parsed using the [`JsonPath`] type:
 //!
 //! ```rust
-//! use serde_json_path::JsonPath;
+//! use jsonbb_path::JsonPath;
 //!
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let path = JsonPath::parse("$.foo.bar")?;
 //! # Ok(())
 //! # }
@@ -47,13 +47,13 @@
 //! [`exactly_one`][NodeList::exactly_one] or the [`at_most_one`][NodeList::at_most_one] method.
 //!
 //! ```rust
-//! use serde_json::json;
-//! # use serde_json_path::JsonPath;
+//! use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let value = json!({ "foo": { "bar": ["baz", 42] } });
 //! let path = JsonPath::parse("$.foo.bar[0]")?;
-//! let node = path.query(&value).exactly_one()?;
+//! let node = path.query(value.as_ref()).exactly_one()?;
 //! assert_eq!(node, "baz");
 //! # Ok(())
 //! # }
@@ -62,13 +62,13 @@
 //! JSONPath allows access via reverse indices:
 //!
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let value = json!([1, 2, 3, 4, 5]);
 //! let path = JsonPath::parse("$[-1]")?;
-//! let node = path.query(&value).at_most_one()?;
-//! assert_eq!(node, Some(&json!(5)));
+//! let node = path.query(value.as_ref()).at_most_one()?;
+//! assert_eq!(node, Some(json!(5).as_ref()));
 //! # Ok(())
 //! # }
 //! ```
@@ -89,12 +89,12 @@
 //! array elements, and on objects, by selecting all object key values:
 //!
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!({ "foo": { "bar": ["baz", "bop"] } });
 //! let path = JsonPath::parse("$.foo.bar[*]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec!["baz", "bop"]);
 //! # Ok(())
 //! # }
@@ -106,21 +106,21 @@
 //! indices can be used for `start` and `end`, and a negative `step` can be used to traverse
 //! the array in reverse order. Consider the following JSON object, and subsequent examples:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! # Ok(())
 //! # }
 //! ```
 //! `start`, `end`, and `step` are all optional:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[:]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![1, 2, 3, 4, 5]);
 //! # Ok(())
 //! # }
@@ -128,12 +128,12 @@
 //!
 //! Omitting `end` will go to end of slice:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[2:]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![3, 4, 5]);
 //! # Ok(())
 //! # }
@@ -141,12 +141,12 @@
 //!
 //! Omitting `start` will start from beginning of slice:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[:2]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![1, 2]);
 //! # Ok(())
 //! # }
@@ -154,12 +154,12 @@
 //!
 //! You can specify the `step` size:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[::2]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![1, 3, 5]);
 //! # Ok(())
 //! # }
@@ -167,12 +167,12 @@
 //!
 //! Or use a negative `step` to go in reverse:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[::-1]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![5, 4, 3, 2, 1]);
 //! # Ok(())
 //! # }
@@ -180,12 +180,12 @@
 //!
 //! Finally, reverse indices can be used for `start` or `end`:
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! # let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[-2:]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![4, 5]);
 //! # Ok(())
 //! # }
@@ -201,12 +201,12 @@
 //! [ietf-filter-selectors]: https://www.ietf.org/archive/id/draft-ietf-jsonpath-base-20.html#name-filter-selector
 //!
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!({ "foo": [1, 2, 3, 4, 5] });
 //! let path = JsonPath::parse("$.foo[?@ > 2 && @ < 5]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![3, 4]);
 //! # Ok(())
 //! # }
@@ -216,9 +216,9 @@
 //! node when writing filters:
 //!
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!({
 //!     "threshold": 40,
 //!     "readings": [
@@ -229,7 +229,7 @@
 //!     ]
 //! });
 //! let path = JsonPath::parse("$.readings[? @.val > $.threshold ].msg")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec!["biz", "bop"]);
 //! # Ok(())
 //! # }
@@ -237,17 +237,17 @@
 //!
 //! Filters also allow you to make use of [functions] in your queries:
 //!
-//! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! ```ignore
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!([
 //!     "a short string",
 //!     "a longer string",
 //!     "an unnecessarily long string",
 //! ]);
 //! let path = JsonPath::parse("$[? length(@) < 20 ]")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec!["a short string", "a longer string"]);
 //! # Ok(())
 //! # }
@@ -260,9 +260,9 @@
 //! [ietf-descendants-def]: https://www.ietf.org/archive/id/draft-ietf-jsonpath-base-20.html#section-1.1-6.28.1
 //!
 //! ```rust
-//! # use serde_json::json;
-//! # use serde_json_path::JsonPath;
-//! # fn main() -> Result<(), serde_json_path::ParseError> {
+//! # use jsonbb::json;
+//! # use jsonbb_path::JsonPath;
+//! # fn main() -> Result<(), jsonbb_path::ParseError> {
 //! let value = json!({
 //!     "foo": {
 //!         "bar": {
@@ -272,7 +272,7 @@
 //!     }
 //! });
 //! let path = JsonPath::parse("$.foo..baz")?;
-//! let nodes = path.query(&value).all();
+//! let nodes = path.query(value.as_ref()).all();
 //! assert_eq!(nodes, vec![2, 1]);
 //! # Ok(())
 //! # }
@@ -317,21 +317,22 @@
 #![allow(elided_lifetimes_in_paths, clippy::type_complexity)]
 #![forbid(unsafe_code)]
 
+pub mod core;
 mod error;
 mod ext;
 mod parser;
 mod path;
 
 #[doc(inline)]
+pub use core::node::{AtMostOneError, ExactlyOneError, NodeList};
+#[doc(inline)]
 pub use error::ParseError;
 #[doc(inline)]
 pub use ext::JsonPathExt;
 #[doc(inline)]
 pub use path::JsonPath;
-#[doc(inline)]
-pub use serde_json_path_core::node::{AtMostOneError, ExactlyOneError, NodeList};
 
-pub use serde_json_path_core::spec::functions;
+pub use core::spec::functions;
 
 /// Register a function for use in JSONPath queries
 ///
@@ -344,13 +345,13 @@ pub use serde_json_path_core::spec::functions;
 /// # Usage
 ///
 /// ```
-/// use serde_json::json;
-/// use serde_json_path::JsonPath;
-/// use serde_json_path::functions::{NodesType, ValueType};
+/// use jsonbb::json;
+/// use jsonbb_path::JsonPath;
+/// use jsonbb_path::functions::{NodesType, ValueType};
 ///
 /// // This will register a function called "first" that takes the first node from a nodelist and
 /// // returns a reference to that node, if it contains any nodes, or nothing otherwise:
-/// #[serde_json_path::function]
+/// #[jsonbb_path::function]
 /// fn first(nodes: NodesType) -> ValueType {
 ///     match nodes.first() {
 ///         Some(n) => ValueType::Node(n),
@@ -366,7 +367,7 @@ pub use serde_json_path_core::spec::functions;
 ///     [7, 8, 9],
 /// ]);
 /// let path = JsonPath::parse("$[? first(@.*) == 4 ]")?;
-/// let node = path.query(&value).exactly_one()?;
+/// let node = path.query(value.as_ref()).exactly_one()?;
 /// assert_eq!(node, &json!([4, 5, 6]));
 /// # Ok(())
 /// # }
@@ -390,9 +391,9 @@ pub use serde_json_path_core::spec::functions;
 /// JSONPath queries using the `name` argument:
 ///
 /// ```
-/// # use serde_json_path::JsonPath;
-/// # use serde_json_path::functions::{ValueType, LogicalType};
-/// #[serde_json_path::function(name = "match")]
+/// # use jsonbb_path::JsonPath;
+/// # use jsonbb_path::functions::{ValueType, LogicalType};
+/// #[jsonbb_path::function(name = "match")]
 /// fn match_func(node: ValueType, regexp: ValueType) -> LogicalType {
 ///     /* ... */
 ///     # LogicalType::False

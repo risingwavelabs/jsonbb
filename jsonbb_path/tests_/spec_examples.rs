@@ -1,5 +1,5 @@
-use serde_json::{json, Value};
-use serde_json_path::JsonPath;
+use jsonbb::{json, Value};
+use jsonbb_path::JsonPath;
 #[cfg(feature = "trace")]
 use test_log::test;
 
@@ -46,7 +46,7 @@ fn spec_example_json() -> Value {
 fn spec_example_1() {
     let value = spec_example_json();
     let path = JsonPath::parse("$.store.book[*].author").unwrap();
-    let nodes = path.query(&value).all();
+    let nodes = path.query(value.as_ref()).all();
     assert_eq!(
         nodes,
         vec![
@@ -62,7 +62,7 @@ fn spec_example_1() {
 fn spec_example_2() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..author").unwrap();
-    let nodes = path.query(&value).all();
+    let nodes = path.query(value.as_ref()).all();
     assert_eq!(
         nodes,
         vec![
@@ -78,7 +78,7 @@ fn spec_example_2() {
 fn spec_example_3() {
     let value = spec_example_json();
     let path = JsonPath::parse("$.store.*").unwrap();
-    let nodes = path.query(&value).all();
+    let nodes = path.query(value.as_ref()).all();
     assert_eq!(nodes.len(), 2);
     assert!(nodes
         .iter()
@@ -89,7 +89,7 @@ fn spec_example_3() {
 fn spec_example_4() {
     let value = spec_example_json();
     let path = JsonPath::parse("$.store..price").unwrap();
-    let nodes = path.query(&value).all();
+    let nodes = path.query(value.as_ref()).all();
     assert_eq!(nodes, vec![399., 8.95, 12.99, 8.99, 22.99]);
 }
 
@@ -97,7 +97,7 @@ fn spec_example_4() {
 fn spec_example_5() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..book[2]").unwrap();
-    let node = path.query(&value).at_most_one().unwrap();
+    let node = path.query(value.as_ref()).at_most_one().unwrap();
     assert!(node.is_some());
     assert_eq!(node, value.pointer("/store/book/2"));
 }
@@ -106,7 +106,7 @@ fn spec_example_5() {
 fn spec_example_6() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..book[-1]").unwrap();
-    let node = path.query(&value).at_most_one().unwrap();
+    let node = path.query(value.as_ref()).at_most_one().unwrap();
     assert!(node.is_some());
     assert_eq!(node, value.pointer("/store/book/3"));
 }
@@ -116,12 +116,12 @@ fn spec_example_7() {
     let value = spec_example_json();
     {
         let path = JsonPath::parse("$..book[0,1]").unwrap();
-        let nodes = path.query(&value).all();
+        let nodes = path.query(value.as_ref()).all();
         assert_eq!(nodes.len(), 2);
     }
     {
         let path = JsonPath::parse("$..book[:2]").unwrap();
-        let nodes = path.query(&value).all();
+        let nodes = path.query(value.as_ref()).all();
         assert_eq!(nodes.len(), 2);
     }
 }
@@ -130,7 +130,7 @@ fn spec_example_7() {
 fn spec_example_8() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..book[?(@.isbn)]").unwrap();
-    let nodes = path.query(&value);
+    let nodes = path.query(value.as_ref());
     assert_eq!(nodes.len(), 2);
 }
 
@@ -138,7 +138,7 @@ fn spec_example_8() {
 fn spec_example_9() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..book[?(@.price<10)]").unwrap();
-    let nodes = path.query(&value);
+    let nodes = path.query(value.as_ref());
     assert_eq!(nodes.len(), 2);
 }
 
@@ -146,6 +146,6 @@ fn spec_example_9() {
 fn spec_example_10() {
     let value = spec_example_json();
     let path = JsonPath::parse("$..*").unwrap();
-    let nodes = path.query(&value);
+    let nodes = path.query(value.as_ref());
     assert_eq!(nodes.len(), 27);
 }

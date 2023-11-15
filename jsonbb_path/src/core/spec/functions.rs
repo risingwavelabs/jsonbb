@@ -137,10 +137,10 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use jsonbb::{Value, ValueRef};
 use once_cell::sync::Lazy;
-use serde_json::Value;
 
-use crate::{node::NodeList, spec::query::Queryable};
+use crate::core::{node::NodeList, spec::query::Queryable};
 
 use super::{
     query::Query,
@@ -180,7 +180,7 @@ impl Function {
     }
 }
 
-#[cfg(feature = "functions")]
+// #[cfg(feature = "functions")]
 inventory::collect!(Function);
 
 /// JSONPath type epresenting a Nodelist
@@ -204,13 +204,13 @@ impl<'a> NodesType<'a> {
     /// Extract all inner nodes as a vector
     ///
     /// Uses the [`NodeList::all`][NodeList::all] method.
-    pub fn all(self) -> Vec<&'a Value> {
+    pub fn all(self) -> Vec<ValueRef<'a>> {
         self.0.all()
     }
 }
 
 impl<'a> IntoIterator for NodesType<'a> {
-    type Item = &'a Value;
+    type Item = ValueRef<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -238,8 +238,8 @@ impl<'a> From<NodeList<'a>> for NodesType<'a> {
     }
 }
 
-impl<'a> From<Vec<&'a Value>> for NodesType<'a> {
-    fn from(values: Vec<&'a Value>) -> Self {
+impl<'a> From<Vec<ValueRef<'a>>> for NodesType<'a> {
+    fn from(values: Vec<ValueRef<'a>>) -> Self {
         Self(values.into())
     }
 }
@@ -332,7 +332,7 @@ pub enum ValueType<'a> {
     Value(Value),
     /// This would be a reference to a location in the JSON object being queried, i.e., the result
     /// of a singular query, or produced by a function.
-    Node(&'a Value),
+    Node(ValueRef<'a>),
     /// This would be the result of a singular query that does not result in any nodes, or be
     /// produced by a function.
     #[default]
@@ -350,11 +350,11 @@ impl<'a> ValueType<'a> {
         FunctionArgType::Value
     }
 
-    /// Convert to a reference of a [`serde_json::Value`] if possible
-    pub fn as_value(&self) -> Option<&Value> {
+    /// Convert to a reference of a [`jsonbb::ValueRef`] if possible
+    pub fn as_value(&self) -> Option<ValueRef<'_>> {
         match self {
-            ValueType::Value(v) => Some(v),
-            ValueType::Node(v) => Some(v),
+            ValueType::Value(v) => Some(v.as_ref()),
+            ValueType::Node(v) => Some(*v),
             ValueType::Nothing => None,
         }
     }
@@ -399,7 +399,7 @@ where
 pub enum JsonPathValue<'a> {
     Nodes(NodeList<'a>),
     Logical(LogicalType),
-    Node(&'a Value),
+    Node(ValueRef<'a>),
     Value(Value),
     Nothing,
 }
@@ -503,8 +503,8 @@ impl FunctionExpr<Validated> {
     )]
     pub fn evaluate<'a, 'b: 'a>(
         &'a self,
-        current: &'b Value,
-        root: &'b Value,
+        current: ValueRef<'b>,
+        root: ValueRef<'b>,
     ) -> JsonPathValue<'_> {
         let args: VecDeque<JsonPathValue> = self
             .args
@@ -578,7 +578,11 @@ impl FunctionExprArg {
         feature = "trace",
         tracing::instrument(name = "Evaluate Function Arg", level = "trace", parent = None, ret)
     )]
-    fn evaluate<'a, 'b: 'a>(&'a self, current: &'b Value, root: &'b Value) -> JsonPathValue<'a> {
+    fn evaluate<'a, 'b: 'a>(
+        &'a self,
+        current: ValueRef<'b>,
+        root: ValueRef<'b>,
+    ) -> JsonPathValue<'a> {
         match self {
             FunctionExprArg::Literal(lit) => lit.into(),
             FunctionExprArg::SingularQuery(q) => match q.eval_query(current, root) {
@@ -718,7 +722,7 @@ impl TestFilter for FunctionExpr<Validated> {
         feature = "trace",
         tracing::instrument(name = "Test Function Expr", level = "trace", parent = None, ret)
     )]
-    fn test_filter<'b>(&self, current: &'b Value, root: &'b Value) -> bool {
+    fn test_filter<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> bool {
         match self.evaluate(current, root) {
             JsonPathValue::Nodes(nl) => !nl.is_empty(),
             JsonPathValue::Value(v) => v.test_filter(current, root),

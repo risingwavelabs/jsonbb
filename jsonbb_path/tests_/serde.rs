@@ -1,6 +1,6 @@
+use jsonbb::{from_value, json};
+use jsonbb_path::JsonPath;
 use serde::Deserialize;
-use serde_json::{from_value, json};
-use serde_json_path::JsonPath;
 
 #[derive(Deserialize)]
 struct Config {
@@ -12,6 +12,6 @@ fn can_deserialize_json_path() {
     let config_json = json!({ "path": "$.foo.*" });
     let config = from_value::<Config>(config_json).expect("deserializes");
     let value = json!({"foo": [1, 2, 3]});
-    let nodes = config.path.query(&value).all();
+    let nodes = config.path.query(value.as_ref()).all();
     assert_eq!(nodes, vec![1, 2, 3]);
 }

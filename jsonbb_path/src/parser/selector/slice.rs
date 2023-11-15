@@ -1,10 +1,10 @@
+use crate::core::spec::selector::slice::Slice;
 use nom::{
     branch::alt,
     character::complete::{char, multispace0},
     combinator::{map, opt},
     sequence::{preceded, separated_pair, terminated},
 };
-use serde_json_path_core::spec::selector::slice::Slice;
 
 use crate::parser::{primitive::int::parse_int, PResult};
 

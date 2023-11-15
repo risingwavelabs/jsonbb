@@ -1,3 +1,6 @@
+use crate::core::spec::functions::{
+    FunctionExpr, FunctionExprArg, FunctionValidationError, Validated,
+};
 use nom::character::complete::char;
 use nom::combinator::{cut, map_res};
 use nom::multi::separated_list0;
@@ -8,9 +11,6 @@ use nom::{
     combinator::map,
     multi::fold_many1,
     sequence::{delimited, pair},
-};
-use serde_json_path_core::spec::functions::{
-    Function, FunctionExpr, FunctionExprArg, FunctionValidationError, Validated,
 };
 
 pub(crate) mod registry;

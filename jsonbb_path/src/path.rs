@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use serde::{de::Visitor, Deserialize, Serialize};
-use serde_json::Value;
-use serde_json_path_core::{
+use crate::core::{
     node::NodeList,
     spec::query::{Query, Queryable},
 };
+use jsonbb::ValueRef;
+use serde::{de::Visitor, Deserialize, Serialize};
 
 use crate::{parser::parse_query_main, ParseError};
 
@@ -19,19 +19,19 @@ use crate::{parser::parse_query_main, ParseError};
 ///
 /// A `JsonPath` can be parsed directly from an `&str` using the [`parse`][JsonPath::parse] method:
 /// ```rust
-/// # use serde_json_path::JsonPath;
+/// # use jsonbb_path::JsonPath;
 /// # fn main() {
 /// let path = JsonPath::parse("$.foo.*").expect("valid JSON Path");
 /// # }
 /// ```
 /// It can then be used to query [`serde_json::Value`]'s with the [`query`][JsonPath::query] method:
 /// ```rust
-/// # use serde_json::json;
-/// # use serde_json_path::JsonPath;
+/// # use jsonbb::json;
+/// # use jsonbb_path::JsonPath;
 /// # fn main() {
 /// # let path = JsonPath::parse("$.foo.*").expect("valid JSON Path");
 /// let value = json!({"foo": [1, 2, 3, 4]});
-/// let nodes = path.query(&value);
+/// let nodes = path.query(value.as_ref());
 /// assert_eq!(nodes.all(), vec![1, 2, 3, 4]);
 /// # }
 /// ```
@@ -45,7 +45,7 @@ impl JsonPath {
     ///
     /// # Example
     /// ```rust
-    /// # use serde_json_path::JsonPath;
+    /// # use jsonbb_path::JsonPath;
     /// # fn main() {
     /// let path = JsonPath::parse("$.foo[1:10:2].baz").expect("valid JSON Path");
     /// # }
@@ -62,17 +62,17 @@ impl JsonPath {
     ///
     /// # Example
     /// ```rust
-    /// # use serde_json::json;
-    /// # use serde_json_path::JsonPath;
-    /// # fn main() -> Result<(), serde_json_path::ParseError> {
+    /// # use jsonbb::json;
+    /// # use jsonbb_path::JsonPath;
+    /// # fn main() -> Result<(), jsonbb_path::ParseError> {
     /// let path = JsonPath::parse("$.foo[::2]")?;
     /// let value = json!({"foo": [1, 2, 3, 4]});
-    /// let nodes = path.query(&value);
+    /// let nodes = path.query(value.as_ref());
     /// assert_eq!(nodes.all(), vec![1, 3]);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn query<'b>(&self, value: &'b Value) -> NodeList<'b> {
+    pub fn query<'b>(&self, value: ValueRef<'b>) -> NodeList<'b> {
         self.0.query(value, value).into()
     }
 }

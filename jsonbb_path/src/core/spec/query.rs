@@ -1,10 +1,10 @@
 //! Types representing queries in JSONPath
-use serde_json::Value;
+use jsonbb::ValueRef;
 
 use super::segment::QuerySegment;
 
 mod sealed {
-    use crate::spec::{
+    use crate::core::spec::{
         segment::{QuerySegment, Segment},
         selector::{
             filter::{Filter, SingularQuery},
@@ -32,7 +32,7 @@ mod sealed {
 /// A type that is query-able
 pub trait Queryable: sealed::Sealed {
     /// Query `self` using a current node, and the root node
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value>;
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>>;
 }
 
 /// Represents a JSONPath expression
@@ -83,7 +83,7 @@ pub enum QueryKind {
 
 impl Queryable for Query {
     #[cfg_attr(feature = "trace", tracing::instrument(name = "Main Query", level = "trace", parent = None, ret))]
-    fn query<'b>(&self, current: &'b Value, root: &'b Value) -> Vec<&'b Value> {
+    fn query<'b>(&self, current: ValueRef<'b>, root: ValueRef<'b>) -> Vec<ValueRef<'b>> {
         let mut query = match self.kind {
             QueryKind::Root => vec![root],
             QueryKind::Current => vec![current],
@@ -91,7 +91,7 @@ impl Queryable for Query {
         for segment in &self.segments {
             let mut new_query = Vec::new();
             for q in &query {
-                new_query.append(&mut segment.query(q, root));
+                new_query.append(&mut segment.query(*q, root));
             }
             query = new_query;
         }

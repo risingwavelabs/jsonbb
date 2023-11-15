@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use crate::core::spec::functions::{Function, LogicalType, NodesType, ValueType};
+use jsonbb::ValueRef;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde_json::Value;
-use serde_json_path_core::spec::functions::{Function, LogicalType, NodesType, ValueType};
 
 /// The main registry of functions for use in JSONPath queries
 ///
@@ -19,11 +19,11 @@ pub(crate) static REGISTRY: Lazy<HashMap<&'static str, &'static Function>> = Laz
     m
 });
 
-fn value_length(value: &Value) -> Option<usize> {
+fn value_length(value: ValueRef<'_>) -> Option<usize> {
     match value {
-        Value::String(s) => Some(s.chars().count()),
-        Value::Array(a) => Some(a.len()),
-        Value::Object(o) => Some(o.len()),
+        ValueRef::String(s) => Some(s.chars().count()),
+        ValueRef::Array(a) => Some(a.len()),
+        ValueRef::Object(o) => Some(o.len()),
         _ => None,
     }
 }
@@ -31,7 +31,7 @@ fn value_length(value: &Value) -> Option<usize> {
 #[serde_json_path_macros::register(target = LENGTH_FUNC)]
 fn length(value: ValueType) -> ValueType {
     match value {
-        ValueType::Value(v) => value_length(&v),
+        ValueType::Value(v) => value_length(v.as_ref()),
         ValueType::Node(v) => value_length(v),
         ValueType::Nothing => None,
     }
@@ -46,10 +46,12 @@ fn count(nodes: NodesType) -> ValueType {
 #[serde_json_path_macros::register(name = "match", target = MATCH_FUNC)]
 fn match_func(value: ValueType, rgx: ValueType) -> LogicalType {
     match (value.as_value(), rgx.as_value()) {
-        (Some(Value::String(s)), Some(Value::String(r))) => Regex::new(format!("^({r})$").as_str())
-            .map(|r| r.is_match(s))
-            .map(Into::into)
-            .unwrap_or_default(),
+        (Some(ValueRef::String(s)), Some(ValueRef::String(r))) => {
+            Regex::new(format!("^({r})$").as_str())
+                .map(|r| r.is_match(s))
+                .map(Into::into)
+                .unwrap_or_default()
+        }
         _ => LogicalType::False,
     }
 }
@@ -57,7 +59,7 @@ fn match_func(value: ValueType, rgx: ValueType) -> LogicalType {
 #[serde_json_path_macros::register(target = SEARCH_FUNC)]
 fn search(value: ValueType, rgx: ValueType) -> LogicalType {
     match (value.as_value(), rgx.as_value()) {
-        (Some(Value::String(s)), Some(Value::String(r))) => Regex::new(r.as_str())
+        (Some(ValueRef::String(s)), Some(ValueRef::String(r))) => Regex::new(r)
             .map(|r| r.is_match(s))
             .map(Into::into)
             .unwrap_or_default(),
