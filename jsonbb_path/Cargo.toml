@@ -1,9 +1,12 @@
 [package]
 name = "jsonbb_path"
-version = "0.6.4"
+version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["Trevor Hilton <trevor.hilton@gmail.com>"]
+authors = [
+    "Trevor Hilton <trevor.hilton@gmail.com>",
+    "Runji Wang <wangrunji0408@163.com>",
+]
 description = "Query jsonbb Values using JSONPath"
 documentation = "https://docs.rs/jsonbb_path"
 repository = "https://github.com/risingwavelabs/jsonbb"

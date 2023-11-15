@@ -1,10 +1,12 @@
-# serde_json_path
+# jsonbb_path
 
-`serde_json_path` allows you to use [JSONPath][jsonpath] to query the [`serde_json::Value`][serde_json_value] type.
+`jsonbb_path` allows you to use [JSONPath][jsonpath] to query the [`jsonbb::Value`][jsonbb_value] type.
 
-[![Build status](https://github.com/hiltontj/serde_json_path/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hiltontj/serde_json_path/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/serde_json_path)](https://crates.io/crates/serde_json_path)
-[![Documentation](https://docs.rs/serde_json_path/badge.svg)][docs]
+Modified from [`serde_json_path`](https://crates.io/crates/serde_json_path).
+
+[![Build status](https://github.com/risingwavelabs/jsonbb/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/risingwavelabs/jsonbb/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/jsonbb_path)](https://crates.io/crates/jsonbb_path)
+[![Documentation](https://docs.rs/jsonbb_path/badge.svg)][docs]
 
 ## Learn More
 
@@ -19,12 +21,12 @@ This project is licensed under the [MIT license][license].
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in `serde_json_path` by you, shall be licensed as MIT, without any
+for inclusion in `jsonbb_path` by you, shall be licensed as MIT, without any
 additional terms or conditions.
 
-[docs]: https://docs.rs/serde_json_path
+[docs]: https://docs.rs/jsonbb_path
 [jsonpath]: https://datatracker.ietf.org/wg/jsonpath/about/
-[serde_json_value]: https://docs.rs/serde_json/latest/serde_json/enum.Value.html
-[license]: https://github.com/hiltontj/serde_json_path/blob/main/LICENSE-MIT
+[jsonbb_value]: https://docs.rs/jsonbb/latest/jsonbb/struct.Value.html
+[license]: https://github.com/hiltontj/jsonbb_path/blob/main/LICENSE-MIT
 [jp_spec]: https://www.ietf.org/archive/id/draft-ietf-jsonpath-base-20.html
 

@@ -1,5 +1,6 @@
 # jsonbb
 
+[![Build status](https://github.com/risingwavelabs/jsonbb/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/risingwavelabs/jsonbb/actions/workflows/ci.yml)
 [![Crate](https://img.shields.io/crates/v/jsonbb.svg)](https://crates.io/crates/jsonbb)
 [![Docs](https://docs.rs/jsonbb/badge.svg)](https://docs.rs/jsonbb)
 

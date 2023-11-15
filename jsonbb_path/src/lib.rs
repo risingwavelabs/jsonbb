@@ -1,4 +1,6 @@
-//! This crate allows you to use JSONPath queries to extract nodelists from a [`serde_json::Value`].
+//! This crate allows you to use JSONPath queries to extract nodelists from a [`jsonbb::Value`].
+//!
+//! Modified from [`serde_json_path`](https://crates.io/crates/serde_json_path).
 //!
 //! The crate intends to adhere to the [IETF JSONPath specification][ietf-spec]. Check out the
 //! specification to read more about JSONPath, and to find many examples of its usage.
@@ -14,9 +16,9 @@
 //!
 //! * The [`JsonPath`] struct, which represents a parsed JSONPath query.
 //! * The [`NodeList`] struct, which represents the result of a JSONPath query performed on a
-//!   [`serde_json::Value`].
+//!   [`jsonbb::Value`].
 //!
-//! In addition, the [`JsonPathExt`] trait is provided, which extends the [`serde_json::Value`]
+//! In addition, the [`JsonPathExt`] trait is provided, which extends the [`jsonbb::Value`]
 //! type with the [`json_path`][JsonPathExt::json_path] method for performing JSONPath queries.
 //!
 //! Finally, the [`#[function]`][function] attribute macro allows you to extend your JSONPath
@@ -37,7 +39,7 @@
 //! # }
 //! ```
 //!
-//! You can then use the parsed JSONPath to query a [`serde_json::Value`]. Every JSONPath query
+//! You can then use the parsed JSONPath to query a [`jsonbb::Value`]. Every JSONPath query
 //! produces a [`NodeList`], which provides several accessor methods that you can use depending on
 //! the nature of your query and its expected output.
 //!
@@ -73,7 +75,7 @@
 //! # }
 //! ```
 //!
-//! Keep in mind, that for simple queries, the [`serde_json::Value::pointer`] method may suffice.
+//! Keep in mind, that for simple queries, the [`jsonbb::Value::pointer`] method may suffice.
 //!
 //! ## Querying for multiple nodes
 //!
@@ -339,7 +341,7 @@ pub use core::spec::functions;
 /// The `#[function]` attribute macro allows you to define your own functions for use in your
 /// JSONPath queries.
 ///
-/// Note that `serde_json_path` already provides the functions defined in the IETF JSONPath
+/// Note that `jsonbb_path` already provides the functions defined in the IETF JSONPath
 /// specification. You can find documentation for those in the [functions] module.
 ///
 /// # Usage
@@ -415,7 +417,7 @@ pub use core::spec::functions;
 /// function in your query.
 ///
 /// The evaluator is used to evaluate the function when using [`JsonPath::query`] to evaluate a
-/// JSONPath query against a [`serde_json::Value`].
+/// JSONPath query against a [`jsonbb::Value`].
 ///
 /// The validator and evaluator are generated as lazily evaluated static closures and registered
 /// into a single function registry using the [`inventory`] crate. This means you can define your
@@ -424,4 +426,4 @@ pub use core::spec::functions;
 /// [`inventory`]: https://docs.rs/inventory/latest/inventory/
 #[doc(inline)]
 #[cfg(feature = "functions")]
-pub use serde_json_path_macros::function;
+pub use jsonbb_path_macros::function;

@@ -13,7 +13,7 @@
 //! # Registered Functions
 //!
 //! The IETF JSONPath Specification defines several functions for use in JSONPath query filter
-//! expressions, all of which are provided for use in `serde_json_path`, and defined below.
+//! expressions, all of which are provided for use in `jsonbb_path`, and defined below.
 //!
 //! ## `length`
 //!

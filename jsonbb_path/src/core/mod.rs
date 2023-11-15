@@ -1,6 +1,4 @@
-//! Core types for [`serde_json_path`]
-//!
-//! [`serde_json_path`]: https://crates.io/crates/serde_json_path
+//! Core types
 // #![warn(
 //     clippy::all,
 //     clippy::dbg_macro,
