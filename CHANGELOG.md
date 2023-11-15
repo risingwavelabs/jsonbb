@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `is_*` methods for `Value`, `ValueRef` and `NumberRef`.
 - Add `From<Number>`, `From<usize>` and `From<isize>` for `Value`.
 - Add `Default` for `Value`.
+- Add `PartialEq` for `ValueRef`.
 - Add `json!` macro. 
 
 ## [0.1.2] - 2023-10-30

@@ -113,6 +113,7 @@
 mod builder;
 mod entry;
 mod macros;
+mod partial_eq;
 mod serde;
 mod value;
 mod value_ref;

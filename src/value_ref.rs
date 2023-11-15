@@ -307,9 +307,20 @@ impl NumberRef<'_> {
         self.to_number().as_i64()
     }
 
-    /// If the number is a float, returns the associated f64. Returns `None` otherwise.
+    /// Represents the number as f64 if possible. Returns None otherwise.
     pub fn as_f64(self) -> Option<f64> {
         self.to_number().as_f64()
+    }
+
+    /// Represents the number as f32 if possible. Returns None otherwise.
+    pub(crate) fn as_f32(&self) -> Option<f32> {
+        let mut data = self.data;
+        Some(match data.get_u8() {
+            NUMBER_U64 => data.get_u64_ne() as f32,
+            NUMBER_I64 => data.get_i64_ne() as f32,
+            NUMBER_F64 => data.get_f64_ne() as f32,
+            _ => panic!("invalid number tag"),
+        })
     }
 
     /// Returns true if the number can be represented by u64.
