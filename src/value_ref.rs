@@ -236,6 +236,33 @@ impl<'a> ValueRef<'a> {
     pub fn get(self, index: impl Index) -> Option<ValueRef<'a>> {
         index.index_into(self)
     }
+
+    /// Looks up a value by a JSON Pointer.
+    pub fn pointer(self, pointer: &str) -> Option<Self> {
+        if pointer.is_empty() {
+            return Some(self);
+        }
+        if !pointer.starts_with('/') {
+            return None;
+        }
+
+        fn parse_index(s: &str) -> Option<usize> {
+            if s.starts_with('+') || (s.starts_with('0') && s.len() != 1) {
+                return None;
+            }
+            s.parse().ok()
+        }
+
+        pointer
+            .split('/')
+            .skip(1)
+            .map(|x| x.replace("~1", "/").replace("~0", "~"))
+            .try_fold(self, |target, token| match target {
+                Self::Object(map) => map.get(&token),
+                Self::Array(list) => parse_index(&token).and_then(|x| list.get(x)),
+                _ => None,
+            })
+    }
 }
 
 impl fmt::Debug for ValueRef<'_> {

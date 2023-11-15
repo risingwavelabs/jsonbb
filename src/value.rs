@@ -325,6 +325,36 @@ impl Value {
         index.index_into(self.as_ref())
     }
 
+    /// Looks up a value by a JSON Pointer.
+    ///
+    /// JSON Pointer defines a string syntax for identifying a specific value
+    /// within a JavaScript Object Notation (JSON) document.
+    ///
+    /// A Pointer is a Unicode string with the reference tokens separated by `/`.
+    /// Inside tokens `/` is replaced by `~1` and `~` is replaced by `~0`. The
+    /// addressed value is returned and if there is no such value `None` is
+    /// returned.
+    ///
+    /// For more information read [RFC6901](https://tools.ietf.org/html/rfc6901).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jsonbb::json;
+    /// #
+    /// let data = json!({
+    ///     "x": {
+    ///         "y": ["z", "zz"]
+    ///     }
+    /// });
+    ///
+    /// assert_eq!(data.pointer("/x/y/1").unwrap(), json!("zz").as_ref());
+    /// assert_eq!(data.pointer("/a/b/c"), None);
+    /// ```
+    pub fn pointer<'a>(&'a self, pointer: &str) -> Option<ValueRef<'a>> {
+        self.as_ref().pointer(pointer)
+    }
+
     /// Push a value into a JSON array.
     ///
     /// This function is `O(N)` where N is the number of elements in the array.
