@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2023-11-20
+
 ### Added
 
 - Add `is_*` methods for `Value`, `ValueRef` and `NumberRef`.
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Default` for `Value`.
 - Add `PartialEq` for `ValueRef`.
 - Add `pointer` for `Value` and `ValueRef`.
+- Add `to_number` for `NumberRef`.
 - Add `json!` macro. 
 
 ## [0.1.2] - 2023-10-30

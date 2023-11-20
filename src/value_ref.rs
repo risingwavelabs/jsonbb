@@ -314,7 +314,7 @@ pub struct NumberRef<'a> {
 
 impl NumberRef<'_> {
     /// Dereferences the number.
-    pub(crate) fn to_number(self) -> Number {
+    pub fn to_number(self) -> Number {
         let mut data = self.data;
         match data.get_u8() {
             NUMBER_U64 => Number::from(data.get_u64_ne()),
