@@ -97,6 +97,16 @@ impl Entry {
     }
 }
 
-pub const NUMBER_U64: u8 = 0x1;
-pub const NUMBER_I64: u8 = 0x2;
-pub const NUMBER_F64: u8 = 0x3;
+// last 4 bits is the size
+pub const NUMBER_ZERO: u8 = 0x0;
+pub const NUMBER_I8: u8 = 0x1;
+pub const NUMBER_I16: u8 = 0x2;
+pub const NUMBER_I32: u8 = 0x4;
+pub const NUMBER_I64: u8 = 0x8;
+pub const NUMBER_U64: u8 = 0x18;
+pub const NUMBER_F64: u8 = 0x28;
+
+/// Returns the size of the number in bytes.
+pub const fn number_size(tag: u8) -> usize {
+    (tag & 0xF) as usize
+}

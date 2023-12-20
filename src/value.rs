@@ -717,4 +717,19 @@ mod tests {
     fn from_neg_inf() {
         _ = Value::from(f64::NEG_INFINITY);
     }
+
+    #[test]
+    fn value_size() {
+        assert_eq!(Value::from(0).capacity(), 1 + 4);
+        assert_eq!(Value::from(1).capacity(), 1 + 1 + 4);
+        assert_eq!(Value::from(128).capacity(), 1 + 2 + 4);
+        assert_eq!(Value::from(32768).capacity(), 1 + 4 + 4);
+        assert_eq!(Value::from(2_147_483_648_u64).capacity(), 1 + 8 + 4);
+        assert_eq!(Value::from(i8::MIN).capacity(), 1 + 1 + 4);
+        assert_eq!(Value::from(i16::MIN).capacity(), 1 + 2 + 4);
+        assert_eq!(Value::from(i32::MIN).capacity(), 1 + 4 + 4);
+        assert_eq!(Value::from(i64::MIN).capacity(), 1 + 8 + 4);
+        assert_eq!(Value::from(0.0f32).capacity(), 1 + 8 + 4);
+        assert_eq!(Value::from(0.0f64).capacity(), 1 + 8 + 4);
+    }
 }

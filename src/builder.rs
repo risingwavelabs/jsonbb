@@ -92,6 +92,9 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds an u64 value to the builder.
     pub fn add_u64(&mut self, v: u64) {
+        if let Ok(v) = i64::try_from(v) {
+            return self.add_i64(v);
+        }
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
@@ -101,14 +104,24 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds an i64 value to the builder.
     pub fn add_i64(&mut self, v: i64) {
-        if v >= 0 {
-            return self.add_u64(v as u64);
-        }
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
-        buffer.push(NUMBER_I64);
-        buffer.put_i64_ne(v);
+        if v == 0 {
+            buffer.push(NUMBER_ZERO);
+        } else if let Ok(v) = i8::try_from(v) {
+            buffer.push(NUMBER_I8);
+            buffer.put_i8(v);
+        } else if let Ok(v) = i16::try_from(v) {
+            buffer.push(NUMBER_I16);
+            buffer.put_i16_ne(v);
+        } else if let Ok(v) = i32::try_from(v) {
+            buffer.push(NUMBER_I32);
+            buffer.put_i32_ne(v);
+        } else {
+            buffer.push(NUMBER_I64);
+            buffer.put_i64_ne(v);
+        }
     }
 
     /// Adds an f64 value to the builder.
@@ -267,7 +280,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 let (k, v) = &mut entries[i];
                 let begin = k.offset();
                 let end = if v.is_number() {
-                    v.offset() + 9
+                    v.offset() + 1 + number_size(data[v.offset()])
                 } else if v.is_string() {
                     v.offset() + 4 + (&data[v.offset()..]).get_u32_ne() as usize
                 } else if v.is_array() || v.is_object() {

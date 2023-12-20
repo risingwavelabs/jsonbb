@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Compress the size of numbers.
+
 ## [0.1.3] - 2023-11-20
 
 ### Added

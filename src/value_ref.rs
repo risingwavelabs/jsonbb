@@ -175,7 +175,7 @@ impl<'a> ValueRef<'a> {
             Entry::TRUE_TAG => Self::Bool(true),
             Entry::NUMBER_TAG => {
                 let ptr = entry.offset();
-                let data = &data[ptr..ptr + 9];
+                let data = &data[ptr..ptr + 1 + number_size(data[ptr])];
                 Self::Number(NumberRef { data })
             }
             Entry::STRING_TAG => {
@@ -307,8 +307,8 @@ impl From<ValueRef<'_>> for serde_json::Value {
 #[derive(Clone, Copy)]
 pub struct NumberRef<'a> {
     // # layout
-    // | tag | number |
-    // |  1  |   8    |
+    // | tag | number    |
+    // |  1  | 0/1/2/4/8 |
     data: &'a [u8],
 }
 
@@ -317,10 +317,14 @@ impl NumberRef<'_> {
     pub fn to_number(self) -> Number {
         let mut data = self.data;
         match data.get_u8() {
-            NUMBER_U64 => Number::from(data.get_u64_ne()),
+            NUMBER_ZERO => Number::from(0),
+            NUMBER_I8 => Number::from(data.get_i8()),
+            NUMBER_I16 => Number::from(data.get_i16_ne()),
+            NUMBER_I32 => Number::from(data.get_i32_ne()),
             NUMBER_I64 => Number::from(data.get_i64_ne()),
+            NUMBER_U64 => Number::from(data.get_u64_ne()),
             NUMBER_F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
-            _ => panic!("invalid number tag"),
+            t => panic!("invalid number tag: {t}"),
         }
     }
 
@@ -343,10 +347,14 @@ impl NumberRef<'_> {
     pub(crate) fn as_f32(&self) -> Option<f32> {
         let mut data = self.data;
         Some(match data.get_u8() {
-            NUMBER_U64 => data.get_u64_ne() as f32,
+            NUMBER_ZERO => 0 as f32,
+            NUMBER_I8 => data.get_i8() as f32,
+            NUMBER_I16 => data.get_i16_ne() as f32,
+            NUMBER_I32 => data.get_i32_ne() as f32,
             NUMBER_I64 => data.get_i64_ne() as f32,
+            NUMBER_U64 => data.get_u64_ne() as f32,
             NUMBER_F64 => data.get_f64_ne() as f32,
-            _ => panic!("invalid number tag"),
+            t => panic!("invalid number tag: {t}"),
         })
     }
 
