@@ -42,7 +42,7 @@ pub enum ValueRef<'a> {
 impl<'a> ValueRef<'a> {
     /// Creates a `ValueRef` from a byte slice.
     pub fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
-        let entry = Entry((&bytes[bytes.len() - 4..]).get_u32_ne());
+        let entry = Entry::from(&bytes[bytes.len() - 4..]);
         ValueRef::from_slice(bytes, entry)
     }
 
@@ -462,7 +462,8 @@ impl<'a> ArrayRef<'a> {
         if index >= len {
             return None;
         }
-        let entry = Entry((&self.data[self.data.len() - 8 - 4 * (len - index)..]).get_u32_ne());
+        let offset = self.data.len() - 8 - 4 * (len - index);
+        let entry = Entry::from(&self.data[offset..offset + 4]);
         Some(ValueRef::from_slice(self.data, entry))
     }
 
@@ -479,8 +480,10 @@ impl<'a> ArrayRef<'a> {
     /// Returns an iterator over the array's elements.
     pub fn iter(self) -> impl ExactSizeIterator<Item = ValueRef<'a>> {
         let len = self.len();
-        let mut entries = &self.data[self.data.len() - 8 - 4 * len..];
-        (0..len).map(move |_| ValueRef::from_slice(self.data, Entry(entries.get_u32_ne())))
+        let offset = self.data.len() - 8 - 4 * len;
+        self.data[offset..offset + 4 * len]
+            .chunks_exact(4)
+            .map(|slice| ValueRef::from_slice(self.data, Entry::from(slice)))
     }
 
     /// Returns the entire array as a slice.
