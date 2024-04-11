@@ -385,11 +385,11 @@ impl Value {
         // insert the value
         buffer.splice(offset..offset, value.as_slice().iter().copied());
         // push the entry
-        buffer.put_u32_ne(value.make_entry(offset).0);
+        buffer.put_slice(value.make_entry(offset).as_bytes());
         // push (len, size, entry)
         buffer.put_u32_ne((len + 1) as u32);
         buffer.put_u32_ne((buffer.len() + 4) as u32);
-        buffer.put_u32_ne(Entry::array(buffer.len()).0);
+        buffer.put_slice(Entry::array(buffer.len()).as_bytes());
         // store the buffer
         self.buffer = buffer.into();
     }

@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2024-04-11
+
 ### Changed
 
 - Compress the size of numbers.
+
+### Fixed
+
+- Fix panic on unaligned pointer.
 
 ## [0.1.3] - 2023-11-20
 

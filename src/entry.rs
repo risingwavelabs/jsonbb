@@ -14,7 +14,7 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct Entry(pub u32);
+pub struct Entry(pub [u8; 4]);
 
 impl Entry {
     const LEN_MASK: u32 = 0x1FFFFFFF;
@@ -28,23 +28,23 @@ impl Entry {
     pub const OBJECT_TAG: u32 = 6;
 
     pub const fn tag(self) -> u32 {
-        self.0 >> 29
+        u32::from_ne_bytes(self.0) >> 29
     }
 
     pub const fn offset(self) -> usize {
-        (self.0 & Self::LEN_MASK) as usize
+        (u32::from_ne_bytes(self.0) & Self::LEN_MASK) as usize
     }
 
     pub const fn null() -> Self {
-        Self(Self::NULL_TAG << 29)
+        Self::from_u32(Self::NULL_TAG << 29)
     }
 
     pub const fn false_() -> Self {
-        Self(Self::FALSE_TAG << 29)
+        Self::from_u32(Self::FALSE_TAG << 29)
     }
 
     pub const fn true_() -> Self {
-        Self(Self::TRUE_TAG << 29)
+        Self::from_u32(Self::TRUE_TAG << 29)
     }
 
     pub const fn bool(b: bool) -> Self {
@@ -57,43 +57,62 @@ impl Entry {
 
     pub const fn number(offset: usize) -> Self {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
-        Self((Self::NUMBER_TAG << 29) | (offset as u32))
+        Self::from_u32((Self::NUMBER_TAG << 29) | (offset as u32))
     }
 
     pub const fn string(offset: usize) -> Self {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
-        Self((Self::STRING_TAG << 29) | (offset as u32))
+        Self::from_u32((Self::STRING_TAG << 29) | (offset as u32))
     }
 
     pub const fn array(offset: usize) -> Self {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
-        Self((Self::ARRAY_TAG << 29) | (offset as u32))
+        Self::from_u32((Self::ARRAY_TAG << 29) | (offset as u32))
     }
 
     pub const fn object(offset: usize) -> Self {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
-        Self((Self::OBJECT_TAG << 29) | (offset as u32))
+        Self::from_u32((Self::OBJECT_TAG << 29) | (offset as u32))
     }
 
     pub const fn is_number(self) -> bool {
-        self.0 >> 29 == Self::NUMBER_TAG
+        self.tag() == Self::NUMBER_TAG
     }
 
     pub const fn is_string(self) -> bool {
-        self.0 >> 29 == Self::STRING_TAG
+        self.tag() == Self::STRING_TAG
     }
 
     pub const fn is_array(self) -> bool {
-        self.0 >> 29 == Self::ARRAY_TAG
+        self.tag() == Self::ARRAY_TAG
     }
 
     pub const fn is_object(self) -> bool {
-        self.0 >> 29 == Self::OBJECT_TAG
+        self.tag() == Self::OBJECT_TAG
     }
 
     pub fn set_offset(&mut self, offset: usize) {
         assert!(offset <= Self::LEN_MASK as usize, "offset too large");
-        self.0 = (self.tag() << 29) | (offset as u32);
+        self.0 = ((self.tag() << 29) | (offset as u32)).to_ne_bytes();
+    }
+
+    pub const fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    const fn from_u32(value: u32) -> Self {
+        Self(value.to_ne_bytes())
+    }
+}
+
+/// Convert a 4-byte slice to an `Entry`.
+///
+/// # Panics
+///
+/// Panics if the slice is not 4 bytes long.
+impl From<&[u8]> for Entry {
+    fn from(slice: &[u8]) -> Self {
+        Entry(slice.try_into().expect("entry must be 4 bytes"))
     }
 }
 
