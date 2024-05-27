@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Do not take `self` for `Value::is_*` methods.
+
 ## [0.1.4] - 2024-04-11
 
 ### Changed
