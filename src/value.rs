@@ -200,7 +200,7 @@ impl Value {
     /// // The boolean `false` is not null.
     /// assert!(!jsonbb::Value::from(false).is_null());
     /// ```
-    pub fn is_null(self) -> bool {
+    pub fn is_null(&self) -> bool {
         self.as_ref().is_null()
     }
 
@@ -214,7 +214,7 @@ impl Value {
     /// // The string `"false"` is a string, not a boolean.
     /// assert!(!jsonbb::Value::from("false").is_boolean());
     /// ```
-    pub fn is_boolean(self) -> bool {
+    pub fn is_boolean(&self) -> bool {
         self.as_ref().is_boolean()
     }
 
@@ -228,7 +228,7 @@ impl Value {
     /// // The string `"1"` is a string, not a number.
     /// assert!(!jsonbb::Value::from("1").is_number());
     /// ```
-    pub fn is_number(self) -> bool {
+    pub fn is_number(&self) -> bool {
         self.as_ref().is_number()
     }
 
@@ -242,7 +242,7 @@ impl Value {
     /// // Negative integer.
     /// assert!(!jsonbb::Value::from(-1i64).is_u64());
     /// ```
-    pub fn is_u64(self) -> bool {
+    pub fn is_u64(&self) -> bool {
         self.as_ref().is_u64()
     }
 
@@ -256,7 +256,7 @@ impl Value {
     /// // Greater than i64::MAX.
     /// assert!(!jsonbb::Value::from(u64::MAX).is_i64());
     /// ```
-    pub fn is_i64(self) -> bool {
+    pub fn is_i64(&self) -> bool {
         self.as_ref().is_i64()
     }
 
@@ -270,7 +270,7 @@ impl Value {
     /// // Integer
     /// assert!(!jsonbb::Value::from(1i64).is_f64());
     /// ```
-    pub fn is_f64(self) -> bool {
+    pub fn is_f64(&self) -> bool {
         self.as_ref().is_f64()
     }
 
@@ -284,17 +284,17 @@ impl Value {
     /// // The boolean `false` is not a string.
     /// assert!(!jsonbb::Value::from(false).is_string());
     /// ```
-    pub fn is_string(self) -> bool {
+    pub fn is_string(&self) -> bool {
         self.as_ref().is_string()
     }
 
     /// Returns true if the value is an array. Returns false otherwise.
-    pub fn is_array(self) -> bool {
+    pub fn is_array(&self) -> bool {
         self.as_ref().is_array()
     }
 
     /// Returns true if the value is an object. Returns false otherwise.
-    pub fn is_object(self) -> bool {
+    pub fn is_object(&self) -> bool {
         self.as_ref().is_object()
     }
 

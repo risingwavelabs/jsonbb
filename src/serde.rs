@@ -300,9 +300,9 @@ impl<W: AsMut<Vec<u8>>> ser::Serializer for &mut Builder<W> {
         Ok(())
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: ser::Serialize,
+        T: ser::Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -325,18 +325,18 @@ impl<W: AsMut<Vec<u8>>> ser::Serializer for &mut Builder<W> {
         self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
+    fn serialize_newtype_struct<T>(
         self,
         _name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: ser::Serialize,
+        T: ser::Serialize + ?Sized,
     {
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -344,7 +344,7 @@ impl<W: AsMut<Vec<u8>>> ser::Serializer for &mut Builder<W> {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: ser::Serialize,
+        T: ser::Serialize + ?Sized,
     {
         self.begin_object();
         self.add_string(variant);
