@@ -20,8 +20,24 @@ use bytes::Buf;
 use serde_json::Number;
 
 /// A reference to a JSON value.
+///
+/// It cannot be constructed directly, as the underlying data must reference a valid `jsonbb`
+/// data slice. To create a standalone JSON value, use the methods on [`Value`] instead.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ValueRef<'a> {
+#[repr(transparent)]
+pub struct ValueRef<'a>(
+    // Intentionally made the enum field private to prevent users from constructing a
+    // standalone `ValueRef` (instead of from a `Value` slice), as there's some invariant
+    // of data layout that needs to be upheld.
+    ValueRefVariant<'a>,
+);
+
+/// The variants of [`ValueRef`].
+///
+/// It cannot be constructed directly, as the underlying data must reference a valid `jsonbb`
+/// data slice. To create a standalone JSON value, use the methods on [`Value`] instead.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ValueRefVariant<'a> {
     // NOTE: Order matters!
     // we follow postgresql's order:
     //  Object > Array > Boolean > Number > String > Null
@@ -40,125 +56,124 @@ pub enum ValueRef<'a> {
 }
 
 impl<'a> ValueRef<'a> {
-    /// Creates a `ValueRef` from a byte slice.
-    pub fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
-        let entry = Entry::from(&bytes[bytes.len() - 4..]);
-        ValueRef::from_slice(bytes, entry)
+    /// Returns the inner variant enum for easy pattern matching.
+    pub fn variant(&self) -> ValueRefVariant<'a> {
+        self.0
     }
 
     /// Returns true if the value is a null. Returns false otherwise.
     pub fn is_null(self) -> bool {
-        matches!(self, Self::Null)
+        matches!(self.variant(), ValueRefVariant::Null)
     }
 
     /// Returns true if the value is a boolean. Returns false otherwise.
     pub fn is_boolean(self) -> bool {
-        matches!(self, Self::Bool(_))
+        matches!(self.variant(), ValueRefVariant::Bool(_))
     }
 
     /// Returns true if the value is a number. Returns false otherwise.
     pub fn is_number(self) -> bool {
-        matches!(self, Self::Number(_))
+        matches!(self.variant(), ValueRefVariant::Number(_))
     }
 
     /// Returns true if the value is an integer between zero and `u64::MAX`.
     pub fn is_u64(self) -> bool {
-        matches!(self, Self::Number(n) if n.is_u64())
+        matches!(self.variant(), ValueRefVariant::Number(n) if n.is_u64())
     }
 
     /// Returns true if the value is an integer between `i64::MIN` and `i64::MAX`.
     pub fn is_i64(self) -> bool {
-        matches!(self, Self::Number(n) if n.is_i64())
+        matches!(self.variant(), ValueRefVariant::Number(n) if n.is_i64())
     }
 
     /// Returns true if the value is a number that can be represented by f64.
     pub fn is_f64(self) -> bool {
-        matches!(self, Self::Number(n) if n.is_f64())
+        matches!(self.variant(), ValueRefVariant::Number(n) if n.is_f64())
     }
 
     /// Returns true if the value is a string. Returns false otherwise.
     pub fn is_string(self) -> bool {
-        matches!(self, Self::String(_))
+        matches!(self.variant(), ValueRefVariant::String(_))
     }
 
     /// Returns true if the value is an array. Returns false otherwise.
     pub fn is_array(self) -> bool {
-        matches!(self, Self::Array(_))
+        matches!(self.variant(), ValueRefVariant::Array(_))
     }
 
     /// Returns true if the value is an object. Returns false otherwise.
     pub fn is_object(self) -> bool {
-        matches!(self, Self::Object(_))
+        matches!(self.variant(), ValueRefVariant::Object(_))
     }
 
     /// If the value is `null`, returns `()`. Returns `None` otherwise.
     pub fn as_null(self) -> Option<()> {
-        match self {
-            Self::Null => Some(()),
+        match self.variant() {
+            ValueRefVariant::Null => Some(()),
             _ => None,
         }
     }
 
     /// If the value is a boolean, returns the associated bool. Returns `None` otherwise.
     pub fn as_bool(self) -> Option<bool> {
-        match self {
-            Self::Bool(b) => Some(b),
+        match self.variant() {
+            ValueRefVariant::Bool(b) => Some(b),
             _ => None,
         }
     }
 
     /// If the value is a number, returns the associated number. Returns `None` otherwise.
     pub fn as_number(self) -> Option<NumberRef<'a>> {
-        match self {
-            Self::Number(n) => Some(n),
+        match self.variant() {
+            ValueRefVariant::Number(n) => Some(n),
             _ => None,
         }
     }
 
     /// If the value is an integer, returns the associated u64. Returns `None` otherwise.
     pub fn as_u64(self) -> Option<u64> {
-        match self {
-            Self::Number(n) => n.as_u64(),
+        match self.variant() {
+            ValueRefVariant::Number(n) => n.as_u64(),
             _ => None,
         }
     }
 
     /// If the value is an integer, returns the associated i64. Returns `None` otherwise.
     pub fn as_i64(self) -> Option<i64> {
-        match self {
-            Self::Number(n) => n.as_i64(),
+        match self.variant() {
+            ValueRefVariant::Number(n) => n.as_i64(),
             _ => None,
         }
     }
 
     /// If the value is a float, returns the associated f64. Returns `None` otherwise.
     pub fn as_f64(self) -> Option<f64> {
-        match self {
-            Self::Number(n) => n.as_f64(),
+        match self.variant() {
+            ValueRefVariant::Number(n) => n.as_f64(),
             _ => None,
         }
     }
 
     /// If the value is a string, returns the associated str. Returns `None` otherwise.
     pub fn as_str(self) -> Option<&'a str> {
-        match self {
-            Self::String(s) => Some(s),
+        match self.variant() {
+            ValueRefVariant::String(s) => Some(s),
             _ => None,
         }
     }
 
     /// If the value is an array, returns the associated array. Returns `None` otherwise.
     pub fn as_array(self) -> Option<ArrayRef<'a>> {
-        match self {
-            Self::Array(a) => Some(a),
+        match self.variant() {
+            ValueRefVariant::Array(a) => Some(a),
             _ => None,
         }
     }
 
     /// If the value is an object, returns the associated map. Returns `None` otherwise.
     pub fn as_object(self) -> Option<ObjectRef<'a>> {
-        match self {
-            Self::Object(o) => Some(o),
+        match self.variant() {
+            ValueRefVariant::Object(o) => Some(o),
             _ => None,
         }
     }
@@ -167,64 +182,88 @@ impl<'a> ValueRef<'a> {
     pub fn to_owned(self) -> Value {
         self.into()
     }
+}
 
+impl<'a> ValueRef<'a> {
+    /// Creates a `ValueRef` from a byte slice.
+    pub fn from_bytes(bytes: &[u8]) -> ValueRef<'_> {
+        // The last 4 bytes will be parsed as the entry.
+        let entry = Entry::from(&bytes[bytes.len() - 4..]);
+        ValueRef::from_slice(bytes, entry)
+    }
+
+    /// Creates a `ValueRef` from a byte slice and an entry.
+    ///
+    /// Different from `from_bytes`, this method allows the data slice to be uncontiguous with
+    /// the entry.
     pub(crate) fn from_slice(data: &'a [u8], entry: Entry) -> Self {
-        match entry.tag() {
-            Entry::NULL_TAG => Self::Null,
-            Entry::FALSE_TAG => Self::Bool(false),
-            Entry::TRUE_TAG => Self::Bool(true),
+        use ValueRefVariant::*;
+
+        Self(match entry.tag() {
+            Entry::NULL_TAG => Null,
+            Entry::FALSE_TAG => Bool(false),
+            Entry::TRUE_TAG => Bool(true),
             Entry::NUMBER_TAG => {
                 let ptr = entry.offset();
                 let data = &data[ptr..ptr + 1 + number_size(data[ptr])];
-                Self::Number(NumberRef { data })
+                Number(NumberRef { data })
             }
             Entry::STRING_TAG => {
                 let ptr = entry.offset();
                 let len = (&data[ptr..]).get_u32_ne() as usize;
-                // SAFETY: we don't check for utf8 validity because it's expensive
+                // SAFETY: we don't check for utf8 validity because it's expensive.
+                // FIXME: this is unsound, as there's no guarantee that provided bytes are
+                // valid UTF-8 as users can pass arbitrary bytes to `from_bytes`.
                 let payload =
                     unsafe { std::str::from_utf8_unchecked(&data[ptr + 4..ptr + 4 + len]) };
-                Self::String(payload)
+                String(payload)
             }
             Entry::ARRAY_TAG => {
                 let ptr = entry.offset();
-                Self::Array(ArrayRef::from_slice(data, ptr))
+                Array(ArrayRef::from_slice(data, ptr))
             }
             Entry::OBJECT_TAG => {
                 let ptr = entry.offset();
-                Self::Object(ObjectRef::from_slice(data, ptr))
+                Object(ObjectRef::from_slice(data, ptr))
             }
             _ => panic!("invalid entry"),
-        }
+        })
     }
 
     /// Returns the entire value as a slice.
     pub(crate) fn as_slice(self) -> &'a [u8] {
-        match self {
-            Self::Null => &[],
-            Self::Bool(_) => &[],
-            Self::Number(n) => n.data,
-            Self::String(s) => unsafe {
-                // SAFETY: include the 4 bytes for the length
+        use ValueRefVariant::*;
+
+        match self.variant() {
+            Null => &[],
+            Bool(_) => &[],
+            Number(n) => n.data,
+            String(s) => unsafe {
+                // SAFETY: all `ValueRef` is constructed with `from_slice`, which guarantees that there's
+                // a 4-byte length before the string.
                 std::slice::from_raw_parts(s.as_ptr().sub(4), s.len() + 4)
             },
-            Self::Array(a) => a.as_slice(),
-            Self::Object(o) => o.as_slice(),
+            Array(a) => a.as_slice(),
+            Object(o) => o.as_slice(),
         }
     }
 
     /// Makes an entry from the value.
     pub(crate) fn make_entry(self, offset: usize) -> Entry {
-        match self {
-            Self::Null => Entry::null(),
-            Self::Bool(b) => Entry::bool(b),
-            Self::Number(_) => Entry::number(offset),
-            Self::String(_) => Entry::string(offset),
-            Self::Array(a) => Entry::array(offset + a.as_slice().len()),
-            Self::Object(o) => Entry::object(offset + o.as_slice().len()),
+        use ValueRefVariant::*;
+
+        match self.variant() {
+            Null => Entry::null(),
+            Bool(b) => Entry::bool(b),
+            Number(_) => Entry::number(offset),
+            String(_) => Entry::string(offset),
+            Array(a) => Entry::array(offset + a.as_slice().len()),
+            Object(o) => Entry::object(offset + o.as_slice().len()),
         }
     }
+}
 
+impl<'a> ValueRef<'a> {
     /// Returns the capacity to store this value, in bytes.
     pub fn capacity(self) -> usize {
         self.as_slice().len()
@@ -257,9 +296,9 @@ impl<'a> ValueRef<'a> {
             .split('/')
             .skip(1)
             .map(|x| x.replace("~1", "/").replace("~0", "~"))
-            .try_fold(self, |target, token| match target {
-                Self::Object(map) => map.get(&token),
-                Self::Array(list) => parse_index(&token).and_then(|x| list.get(x)),
+            .try_fold(self, |target, token| match target.variant() {
+                ValueRefVariant::Object(map) => map.get(&token),
+                ValueRefVariant::Array(list) => parse_index(&token).and_then(|x| list.get(x)),
                 _ => None,
             })
     }
@@ -267,13 +306,15 @@ impl<'a> ValueRef<'a> {
 
 impl fmt::Debug for ValueRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Null => f.write_str("null"),
-            Self::Bool(b) => b.fmt(f),
-            Self::Number(n) => n.fmt(f),
-            Self::String(s) => s.fmt(f),
-            Self::Array(a) => a.fmt(f),
-            Self::Object(o) => o.fmt(f),
+        use ValueRefVariant::*;
+
+        match self.variant() {
+            Null => f.write_str("null"),
+            Bool(b) => b.fmt(f),
+            Number(n) => n.fmt(f),
+            String(s) => s.fmt(f),
+            Array(a) => a.fmt(f),
+            Object(o) => o.fmt(f),
         }
     }
 }
@@ -288,13 +329,15 @@ impl fmt::Display for ValueRef<'_> {
 /// Build a `serde_json::Value` from a jsonbb node.
 impl From<ValueRef<'_>> for serde_json::Value {
     fn from(value: ValueRef<'_>) -> Self {
-        match value {
-            ValueRef::Null => Self::Null,
-            ValueRef::Bool(b) => Self::Bool(b),
-            ValueRef::Number(n) => Self::Number(n.to_number()),
-            ValueRef::String(s) => Self::String(s.to_owned()),
-            ValueRef::Array(a) => Self::Array(a.iter().map(Self::from).collect()),
-            ValueRef::Object(o) => Self::Object(
+        use ValueRefVariant::*;
+
+        match value.variant() {
+            Null => Self::Null,
+            Bool(b) => Self::Bool(b),
+            Number(n) => Self::Number(n.to_number()),
+            String(s) => Self::String(s.to_owned()),
+            Array(a) => Self::Array(a.iter().map(Self::from).collect()),
+            Object(o) => Self::Object(
                 o.iter()
                     .map(|(k, v)| (k.to_owned(), Self::from(v)))
                     .collect(),
@@ -793,8 +836,8 @@ pub trait Index: private::Sealed {
 
 impl Index for usize {
     fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
-        match v {
-            ValueRef::Array(a) => a.get(*self),
+        match v.variant() {
+            ValueRefVariant::Array(a) => a.get(*self),
             _ => None,
         }
     }
@@ -802,8 +845,8 @@ impl Index for usize {
 
 impl Index for str {
     fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
-        match v {
-            ValueRef::Object(o) => o.get(self),
+        match v.variant() {
+            ValueRefVariant::Object(o) => o.get(self),
             _ => None,
         }
     }
@@ -811,8 +854,8 @@ impl Index for str {
 
 impl Index for String {
     fn index_into<'v>(&self, v: ValueRef<'v>) -> Option<ValueRef<'v>> {
-        match v {
-            ValueRef::Object(o) => o.get(self),
+        match v.variant() {
+            ValueRefVariant::Object(o) => o.get(self),
             _ => None,
         }
     }

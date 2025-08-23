@@ -321,10 +321,12 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds a JSON value to the builder.
     pub fn add_value(&mut self, value: ValueRef<'_>) {
-        match value {
-            ValueRef::Null => self.add_null(),
-            ValueRef::Bool(b) => self.add_bool(b),
-            ValueRef::Number(n) => {
+        use ValueRefVariant::*;
+
+        match value.variant() {
+            Null => self.add_null(),
+            Bool(b) => self.add_bool(b),
+            Number(n) => {
                 if let Some(i) = n.as_u64() {
                     self.add_u64(i)
                 } else if let Some(i) = n.as_i64() {
@@ -335,14 +337,14 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                     panic!("invalid number");
                 }
             }
-            ValueRef::String(s) => self.add_string(s),
-            ValueRef::Array(a) => {
+            String(s) => self.add_string(s),
+            Array(a) => {
                 let buffer = self.buffer.as_mut();
                 buffer.extend_from_slice(a.as_slice());
                 let offset = self.offset();
                 self.pointers.push(Entry::array(offset));
             }
-            ValueRef::Object(o) => {
+            Object(o) => {
                 let buffer = self.buffer.as_mut();
                 buffer.extend_from_slice(o.as_slice());
                 let offset = self.offset();

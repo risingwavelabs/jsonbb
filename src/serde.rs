@@ -44,13 +44,15 @@ impl ser::Serialize for ValueRef<'_> {
     where
         S: ::serde::Serializer,
     {
-        match self {
-            Self::Null => serializer.serialize_unit(),
-            Self::Bool(b) => serializer.serialize_bool(*b),
-            Self::Number(n) => n.serialize(serializer),
-            Self::String(s) => serializer.serialize_str(s),
-            Self::Array(v) => v.serialize(serializer),
-            Self::Object(o) => o.serialize(serializer),
+        use super::ValueRefVariant::*;
+
+        match self.variant() {
+            Null => serializer.serialize_unit(),
+            Bool(b) => serializer.serialize_bool(b),
+            Number(n) => n.serialize(serializer),
+            String(s) => serializer.serialize_str(s),
+            Array(v) => v.serialize(serializer),
+            Object(o) => o.serialize(serializer),
         }
     }
 }

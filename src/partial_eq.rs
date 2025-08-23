@@ -14,7 +14,7 @@
 
 //! `PartialEq` implementations for `ValueRef` and `Value`.
 
-use crate::ValueRef;
+use crate::{ValueRef, ValueRefVariant};
 
 use super::Value;
 
@@ -27,8 +27,8 @@ fn eq_u64(value: ValueRef<'_>, other: u64) -> bool {
 }
 
 fn eq_f32(value: ValueRef<'_>, other: f32) -> bool {
-    match value {
-        ValueRef::Number(n) => n.as_f32().map_or(false, |i| i == other),
+    match value.variant() {
+        ValueRefVariant::Number(n) => n.as_f32().map_or(false, |i| i == other),
         _ => false,
     }
 }
