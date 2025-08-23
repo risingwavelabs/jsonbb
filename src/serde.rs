@@ -48,7 +48,7 @@ impl ser::Serialize for ValueRef<'_> {
             Self::Null => serializer.serialize_unit(),
             Self::Bool(b) => serializer.serialize_bool(*b),
             Self::Number(n) => n.serialize(serializer),
-            Self::String(s) => serializer.serialize_str(s),
+            Self::String(s) => serializer.serialize_str(s.as_str()),
             Self::Array(v) => v.serialize(serializer),
             Self::Object(o) => o.serialize(serializer),
         }
