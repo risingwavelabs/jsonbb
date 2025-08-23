@@ -788,7 +788,7 @@ fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>
     fn io_error(_: fmt::Error) -> io::Error {
         // Error value does not matter because Display impl just maps it
         // back to fmt::Error.
-        io::Error::new(io::ErrorKind::Other, "fmt error")
+        io::Error::other("fmt error")
     }
 
     let alternate = f.alternate();
@@ -840,7 +840,7 @@ impl Index for String {
     }
 }
 
-impl<'a, T> Index for &'a T
+impl<T> Index for &T
 where
     T: ?Sized + Index,
 {
@@ -855,5 +855,5 @@ mod private {
     impl Sealed for usize {}
     impl Sealed for str {}
     impl Sealed for String {}
-    impl<'a, T> Sealed for &'a T where T: ?Sized + Sealed {}
+    impl<T> Sealed for &T where T: ?Sized + Sealed {}
 }

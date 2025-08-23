@@ -67,11 +67,11 @@
 //! It has the following key features:
 //!
 //! 1. Memory Continuity: The content of any JSON subtree is stored contiguously, allowing for
-//! efficient copying through `memcpy`. This leads to highly efficient indexing operations.
+//!    efficient copying through `memcpy`. This leads to highly efficient indexing operations.
 //!
 //! 2. Post-Order Traversal: JSON nodes are stored in post-order traversal sequence. When parsing
-//! JSON strings, output can be sequentially written to the buffer without additional memory
-//! allocation and movement. This results in highly efficient parsing operations.
+//!    JSON strings, output can be sequentially written to the buffer without additional memory
+//!    allocation and movement. This results in highly efficient parsing operations.
 //!
 //! Each JSON node consists of a fixed-size **entry** and a variable-length **payload**.
 //! Each entry is 4 bytes, with 3 bits storing the node type and 29 bits storing the offset of

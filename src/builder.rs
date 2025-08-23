@@ -397,7 +397,7 @@ impl Builder<Vec<u8>> {
     }
 }
 
-impl<'a> Builder<&'a mut Vec<u8>> {
+impl Builder<&mut Vec<u8>> {
     /// Finishes building.
     pub fn finish(self) {
         self.finish_internal();
