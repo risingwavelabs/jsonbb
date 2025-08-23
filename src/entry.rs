@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, rkyv::Portable)]
 #[repr(transparent)]
-pub struct Entry(pub [u8; 4]);
+pub(crate) struct Entry(pub [u8; 4]);
 
 impl Entry {
     const LEN_MASK: u32 = 0x1FFFFFFF;
