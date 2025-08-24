@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716802053379,
+  "lastUpdate": 1756011639636,
   "repoUrl": "https://github.com/risingwavelabs/jsonbb",
   "entries": {
     "Rust Benchmark": [
@@ -1402,6 +1402,162 @@ window.BENCHMARK_DATA = {
           {
             "name": "array_push/jsonbb",
             "value": 114,
+            "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "wangrunji0408@163.com",
+            "name": "Runji Wang",
+            "username": "wangrunji0408"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9aa2b9272f379663616908186f35e6bbb2a2928",
+          "message": "introduce StringRef to prevent unsafe memory access (#7)",
+          "timestamp": "2025-08-24T11:55:32+07:00",
+          "tree_id": "8412ba0ef4ebdd1e6df67e3027448f029510c160",
+          "url": "https://github.com/risingwavelabs/jsonbb/commit/f9aa2b9272f379663616908186f35e6bbb2a2928"
+        },
+        "date": 1756011639178,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "from_string/jsonbb",
+            "value": 31,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "from_i64/jsonbb",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "from_f64/jsonbb",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "citm_catalog parse/jsonbb",
+            "value": 3139531,
+            "range": "± 22417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canada parse/jsonbb",
+            "value": 5234089,
+            "range": "± 13187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "twitter parse/jsonbb",
+            "value": 1713726,
+            "range": "± 27110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "citm_catalog to_string/jsonbb",
+            "value": 2806800,
+            "range": "± 26471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canada to_string/jsonbb",
+            "value": 10210761,
+            "range": "± 42705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "twitter to_string/jsonbb",
+            "value": 1613245,
+            "range": "± 64125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hash/jsonbb",
+            "value": 161,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "eq/jsonbb",
+            "value": 143,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cmp/jsonbb",
+            "value": 146,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "json[i]/jsonbb",
+            "value": 48,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "json['key']/jsonbb",
+            "value": 80,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "[json['key'] for json in array]/jsonbb",
+            "value": 67252,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canada->type index/jsonbb",
+            "value": 71,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "citm_catalog->areaNames index/jsonbb",
+            "value": 124,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "citm_catalog->areaNames->205705994 index/jsonbb",
+            "value": 196,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "citm_catalog->topicNames->324846100 index/jsonbb",
+            "value": 156,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "twitter->search_metadata->max_id_str index/jsonbb",
+            "value": 145,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "json[path]/jsonbb",
+            "value": 95,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "array_push/jsonbb",
+            "value": 113,
             "range": "± 2",
             "unit": "ns/iter"
           }
