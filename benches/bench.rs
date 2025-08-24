@@ -366,7 +366,7 @@ fn bench_file_index(c: &mut Criterion) {
 
     for test_suite in test_suites {
         let suite_name = format!("{}->{}", test_suite.file, test_suite.paths.join("->"));
-        let bytes = std::fs::read(&format!("./benches/data/{}.json", test_suite.file)).unwrap();
+        let bytes = std::fs::read(format!("./benches/data/{}.json", test_suite.file)).unwrap();
 
         let value: jsonbb::Value = std::str::from_utf8(&bytes).unwrap().parse().unwrap();
         c.bench_function(&format!("{suite_name} index/jsonbb"), |b| {

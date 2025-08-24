@@ -48,7 +48,7 @@ impl ser::Serialize for ValueRef<'_> {
             Self::Null => serializer.serialize_unit(),
             Self::Bool(b) => serializer.serialize_bool(*b),
             Self::Number(n) => n.serialize(serializer),
-            Self::String(s) => serializer.serialize_str(s),
+            Self::String(s) => serializer.serialize_str(s.as_str()),
             Self::Array(v) => v.serialize(serializer),
             Self::Object(o) => o.serialize(serializer),
         }
@@ -93,6 +93,92 @@ impl ser::Serialize for ObjectRef<'_> {
     }
 }
 
+struct BuilderVisitor<'a, W>(&'a mut Builder<W>);
+
+impl<'de, W: AsMut<Vec<u8>>> Visitor<'de> for BuilderVisitor<'_, W> {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("any valid JSON value")
+    }
+
+    #[inline]
+    fn visit_bool<E>(self, value: bool) -> Result<(), E> {
+        self.0.add_bool(value);
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_i64<E>(self, value: i64) -> Result<(), E> {
+        self.0.add_i64(value);
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_u64<E>(self, value: u64) -> Result<(), E> {
+        self.0.add_u64(value);
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_f64<E>(self, value: f64) -> Result<(), E> {
+        self.0.add_f64(value);
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_str<E>(self, value: &str) -> Result<(), E>
+    where
+        E: serde::de::Error,
+    {
+        self.0.add_string(value);
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_none<E>(self) -> Result<(), E> {
+        self.0.add_null();
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_some<D>(self, deserializer: D) -> Result<(), D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        self.0.deserialize(deserializer)
+    }
+
+    #[inline]
+    fn visit_unit<E>(self) -> Result<(), E> {
+        self.0.add_null();
+        Ok(())
+    }
+
+    #[inline]
+    fn visit_seq<V>(self, mut visitor: V) -> Result<(), V::Error>
+    where
+        V: SeqAccess<'de>,
+    {
+        self.0.begin_array();
+        while visitor.next_element_seed(&mut *self.0)?.is_some() {}
+        self.0.end_array();
+        Ok(())
+    }
+
+    fn visit_map<V>(self, mut visitor: V) -> Result<(), V::Error>
+    where
+        V: MapAccess<'de>,
+    {
+        self.0.begin_object();
+        while visitor.next_key_seed(&mut *self.0)?.is_some() {
+            visitor.next_value_seed(&mut *self.0)?;
+        }
+        self.0.end_object();
+        Ok(())
+    }
+}
+
 impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
     type Value = ();
 
@@ -101,91 +187,7 @@ impl<'de, W: AsMut<Vec<u8>>> DeserializeSeed<'de> for &mut Builder<W> {
     where
         D: serde::Deserializer<'de>,
     {
-        impl<'de, W: AsMut<Vec<u8>>> Visitor<'de> for &mut Builder<W> {
-            type Value = ();
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("any valid JSON value")
-            }
-
-            #[inline]
-            fn visit_bool<E>(self, value: bool) -> Result<(), E> {
-                self.add_bool(value);
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_i64<E>(self, value: i64) -> Result<(), E> {
-                self.add_i64(value);
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_u64<E>(self, value: u64) -> Result<(), E> {
-                self.add_u64(value);
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_f64<E>(self, value: f64) -> Result<(), E> {
-                self.add_f64(value);
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_str<E>(self, value: &str) -> Result<(), E>
-            where
-                E: serde::de::Error,
-            {
-                self.add_string(value);
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_none<E>(self) -> Result<(), E> {
-                self.add_null();
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_some<D>(self, deserializer: D) -> Result<(), D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                self.deserialize(deserializer)
-            }
-
-            #[inline]
-            fn visit_unit<E>(self) -> Result<(), E> {
-                self.add_null();
-                Ok(())
-            }
-
-            #[inline]
-            fn visit_seq<V>(self, mut visitor: V) -> Result<(), V::Error>
-            where
-                V: SeqAccess<'de>,
-            {
-                self.begin_array();
-                while visitor.next_element_seed(&mut *self)?.is_some() {}
-                self.end_array();
-                Ok(())
-            }
-
-            fn visit_map<V>(self, mut visitor: V) -> Result<(), V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                self.begin_object();
-                while visitor.next_key_seed(&mut *self)?.is_some() {
-                    visitor.next_value_seed(&mut *self)?;
-                }
-                self.end_object();
-                Ok(())
-            }
-        }
-
-        deserializer.deserialize_any(self)
+        deserializer.deserialize_any(BuilderVisitor(self))
     }
 }
 

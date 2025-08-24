@@ -335,7 +335,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                     panic!("invalid number");
                 }
             }
-            ValueRef::String(s) => self.add_string(s),
+            ValueRef::String(s) => self.add_string(s.as_str()),
             ValueRef::Array(a) => {
                 let buffer = self.buffer.as_mut();
                 buffer.extend_from_slice(a.as_slice());
@@ -397,7 +397,7 @@ impl Builder<Vec<u8>> {
     }
 }
 
-impl<'a> Builder<&'a mut Vec<u8>> {
+impl Builder<&mut Vec<u8>> {
     /// Finishes building.
     pub fn finish(self) {
         self.finish_internal();

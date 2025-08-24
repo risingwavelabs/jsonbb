@@ -28,7 +28,7 @@ pub enum ValueRef<'a> {
     /// Represents a JSON null value.
     Null,
     /// Represents a JSON string.
-    String(&'a str),
+    String(StringRef<'a>),
     /// Represents a JSON number.
     Number(NumberRef<'a>),
     /// Represents a JSON boolean.
@@ -142,7 +142,7 @@ impl<'a> ValueRef<'a> {
     /// If the value is a string, returns the associated str. Returns `None` otherwise.
     pub fn as_str(self) -> Option<&'a str> {
         match self {
-            Self::String(s) => Some(s),
+            Self::String(s) => Some(s.as_str()),
             _ => None,
         }
     }
@@ -181,10 +181,7 @@ impl<'a> ValueRef<'a> {
             Entry::STRING_TAG => {
                 let ptr = entry.offset();
                 let len = (&data[ptr..]).get_u32_ne() as usize;
-                // SAFETY: we don't check for utf8 validity because it's expensive
-                let payload =
-                    unsafe { std::str::from_utf8_unchecked(&data[ptr + 4..ptr + 4 + len]) };
-                Self::String(payload)
+                Self::String(StringRef::from_bytes(&data[ptr..ptr + 4 + len]))
             }
             Entry::ARRAY_TAG => {
                 let ptr = entry.offset();
@@ -204,10 +201,7 @@ impl<'a> ValueRef<'a> {
             Self::Null => &[],
             Self::Bool(_) => &[],
             Self::Number(n) => n.data,
-            Self::String(s) => unsafe {
-                // SAFETY: include the 4 bytes for the length
-                std::slice::from_raw_parts(s.as_ptr().sub(4), s.len() + 4)
-            },
+            Self::String(s) => s.as_slice(),
             Self::Array(a) => a.as_slice(),
             Self::Object(o) => o.as_slice(),
         }
@@ -271,7 +265,7 @@ impl fmt::Debug for ValueRef<'_> {
             Self::Null => f.write_str("null"),
             Self::Bool(b) => b.fmt(f),
             Self::Number(n) => n.fmt(f),
-            Self::String(s) => s.fmt(f),
+            Self::String(s) => s.as_str().fmt(f),
             Self::Array(a) => a.fmt(f),
             Self::Object(o) => o.fmt(f),
         }
@@ -292,7 +286,7 @@ impl From<ValueRef<'_>> for serde_json::Value {
             ValueRef::Null => Self::Null,
             ValueRef::Bool(b) => Self::Bool(b),
             ValueRef::Number(n) => Self::Number(n.to_number()),
-            ValueRef::String(s) => Self::String(s.to_owned()),
+            ValueRef::String(s) => Self::String(s.as_str().to_owned()),
             ValueRef::Array(a) => Self::Array(a.iter().map(Self::from).collect()),
             ValueRef::Object(o) => Self::Object(
                 o.iter()
@@ -300,6 +294,34 @@ impl From<ValueRef<'_>> for serde_json::Value {
                     .collect(),
             ),
         }
+    }
+}
+
+/// A reference to a JSON string.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StringRef<'a> {
+    // # layout
+    // | len (u32) | bytes    |
+    // |    4      | 0..len  |
+    data: &'a [u8],
+}
+
+impl<'a> StringRef<'a> {
+    /// Creates a `StringRef` from a byte slice that contains the string data with length prefix.
+    pub(crate) fn from_bytes(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+
+    /// Returns the string as a `&str`.
+    pub fn as_str(&self) -> &'a str {
+        let len = (&self.data[..4]).get_u32_ne() as usize;
+        // SAFETY: we don't check for utf8 validity because it's expensive
+        unsafe { std::str::from_utf8_unchecked(&self.data[4..4 + len]) }
+    }
+
+    /// Returns the entire string as a slice including the length prefix.
+    pub(crate) fn as_slice(&self) -> &'a [u8] {
+        self.data
     }
 }
 
@@ -766,7 +788,7 @@ fn serialize_in_json(value: &impl ::serde::Serialize, f: &mut fmt::Formatter<'_>
     fn io_error(_: fmt::Error) -> io::Error {
         // Error value does not matter because Display impl just maps it
         // back to fmt::Error.
-        io::Error::new(io::ErrorKind::Other, "fmt error")
+        io::Error::other("fmt error")
     }
 
     let alternate = f.alternate();
@@ -818,7 +840,7 @@ impl Index for String {
     }
 }
 
-impl<'a, T> Index for &'a T
+impl<T> Index for &T
 where
     T: ?Sized + Index,
 {
@@ -833,5 +855,5 @@ mod private {
     impl Sealed for usize {}
     impl Sealed for str {}
     impl Sealed for String {}
-    impl<'a, T> Sealed for &'a T where T: ?Sized + Sealed {}
+    impl<T> Sealed for &T where T: ?Sized + Sealed {}
 }

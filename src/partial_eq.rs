@@ -19,30 +19,30 @@ use crate::ValueRef;
 use super::Value;
 
 fn eq_i64(value: ValueRef<'_>, other: i64) -> bool {
-    value.as_i64().map_or(false, |i| i == other)
+    value.as_i64() == Some(other)
 }
 
 fn eq_u64(value: ValueRef<'_>, other: u64) -> bool {
-    value.as_u64().map_or(false, |i| i == other)
+    value.as_u64() == Some(other)
 }
 
 fn eq_f32(value: ValueRef<'_>, other: f32) -> bool {
     match value {
-        ValueRef::Number(n) => n.as_f32().map_or(false, |i| i == other),
+        ValueRef::Number(n) => n.as_f32() == Some(other),
         _ => false,
     }
 }
 
 fn eq_f64(value: ValueRef<'_>, other: f64) -> bool {
-    value.as_f64().map_or(false, |i| i == other)
+    value.as_f64() == Some(other)
 }
 
 fn eq_bool(value: ValueRef<'_>, other: bool) -> bool {
-    value.as_bool().map_or(false, |i| i == other)
+    value.as_bool() == Some(other)
 }
 
 fn eq_str(value: ValueRef<'_>, other: &str) -> bool {
-    value.as_str().map_or(false, |i| i == other)
+    value.as_str() == Some(other)
 }
 
 impl PartialEq<str> for ValueRef<'_> {
