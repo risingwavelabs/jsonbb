@@ -22,10 +22,6 @@ use std::{
 
 /// An owned JSON value.
 #[derive(Clone)]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct Value {
     pub(crate) buffer: Box<[u8]>,
 }
