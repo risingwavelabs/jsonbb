@@ -19,54 +19,6 @@ use super::*;
 use bytes::Buf;
 use serde_json::Number;
 
-#[cfg(feature = "rkyv")]
-mod rkyv_impl {
-    use rkyv::ser::{Allocator, Writer};
-    use rkyv::Place;
-    use rkyv::{rancor::Fallible, Serialize};
-    use rkyv::{
-        vec::{ArchivedVec, VecResolver},
-        Archive,
-    };
-
-    use crate::{entry::Entry, ValueRef};
-
-    #[derive(rkyv::Portable, rkyv::bytecheck::CheckBytes)]
-    #[bytecheck(crate = rkyv::bytecheck)]
-    #[repr(C)]
-    /// An archived [`ValueRef`], whose reference can be converted to a [`ValueRef`]
-    /// without allocating.
-    pub struct ArchivedValueRef {
-        entry: Entry,
-        data: ArchivedVec<u8>,
-    }
-
-    impl<'a> Archive for ValueRef<'a> {
-        type Archived = ArchivedValueRef;
-        // `Entry` is essentially a `[u8; 4]`, which does not need a stateful resolver.
-        type Resolver = VecResolver;
-
-        fn resolve(&self, resolver: Self::Resolver, out: Place<Self::Archived>) {
-            rkyv::munge::munge!(let ArchivedValueRef { entry: Entry {0: entry}, data } = out);
-            <[u8; 4] as Archive>::resolve(&self.make_entry(0).0, [(); 4], entry);
-            ArchivedVec::resolve_from_len(self.as_slice().len(), resolver, data);
-        }
-    }
-
-    impl<'a, S: Fallible + ?Sized + Allocator + Writer> Serialize<S> for ValueRef<'a> {
-        fn serialize(&self, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
-            <[u8; 4] as Serialize<S>>::serialize(&self.make_entry(0).0, serializer)?;
-            ArchivedVec::serialize_from_slice(self.as_slice(), serializer)
-        }
-    }
-
-    impl<'a> From<&'a ArchivedValueRef> for ValueRef<'a> {
-        fn from(value: &'a ArchivedValueRef) -> Self {
-            ValueRef::from_slice(value.data.as_slice(), value.entry)
-        }
-    }
-}
-
 /// A reference to a JSON value.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValueRef<'a> {

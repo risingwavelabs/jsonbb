@@ -114,12 +114,16 @@ mod builder;
 mod entry;
 mod macros;
 mod partial_eq;
+#[cfg(feature = "rkyv")]
+mod rkyv_impl;
 mod serde;
 mod value;
 mod value_ref;
 
 pub use self::builder::*;
 use self::entry::*;
+#[cfg(feature = "rkyv")]
+pub use self::rkyv_impl::*;
 pub use self::serde::*;
 pub use self::value::*;
 pub use self::value_ref::*;
