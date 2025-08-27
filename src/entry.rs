@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, rkyv::Portable)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Portable))]
 #[repr(transparent)]
 pub(crate) struct Entry(pub [u8; 4]);
 

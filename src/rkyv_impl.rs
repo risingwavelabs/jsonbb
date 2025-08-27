@@ -26,12 +26,16 @@ use crate::{entry::Entry, ValueRef};
 #[derive(rkyv::Portable, rkyv::bytecheck::CheckBytes)]
 #[bytecheck(crate = rkyv::bytecheck)]
 #[repr(C)]
-/// An archived [`Value`] or [`ValueRef`], whose reference can be converted to a [`ValueRef`]
-/// without allocating.
+/// An `rkyv`-archived [`Value`] or [`ValueRef`].
+///
+/// - It can be deserialized back into a [`Value`].
+/// - Its reference can be converted to a [`ValueRef`] without allocating.
 pub struct ArchivedValue {
     entry: Entry,
     data: ArchivedVec<u8>,
 }
+
+const DUMMY_OFFSET: usize = 0;
 
 impl<'a> Archive for ValueRef<'a> {
     type Archived = ArchivedValue;
@@ -40,7 +44,7 @@ impl<'a> Archive for ValueRef<'a> {
 
     fn resolve(&self, resolver: Self::Resolver, out: Place<Self::Archived>) {
         rkyv::munge::munge!(let ArchivedValue { entry: Entry {0: entry}, data } = out);
-        <[u8; 4] as Archive>::resolve(&self.make_entry(0).0, [(); 4], entry);
+        <[u8; 4] as Archive>::resolve(&self.make_entry(DUMMY_OFFSET).0, [(); 4], entry);
         ArchivedVec::resolve_from_len(self.as_slice().len(), resolver, data);
     }
 }
@@ -56,7 +60,7 @@ impl Archive for Value {
 
 impl<'a, S: Fallible + ?Sized + Allocator + Writer> Serialize<S> for ValueRef<'a> {
     fn serialize(&self, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
-        <[u8; 4] as Serialize<S>>::serialize(&self.make_entry(0).0, serializer)?;
+        <[u8; 4] as Serialize<S>>::serialize(&self.make_entry(DUMMY_OFFSET).0, serializer)?;
         ArchivedVec::serialize_from_slice(self.as_slice(), serializer)
     }
 }
@@ -77,9 +81,7 @@ where
 
         let mut buffer = data;
         buffer.extend_from_slice(&entry);
-        Ok(Value {
-            buffer: buffer.into_boxed_slice(),
-        })
+        Ok(Value::from_bytes(buffer))
     }
 }
 

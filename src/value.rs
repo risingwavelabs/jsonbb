@@ -78,7 +78,7 @@ impl Value {
     }
 
     /// Creates a JSON `Value` from bytes of jsonbb encoding.
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_bytes(bytes: impl Into<Box<[u8]>>) -> Self {
         Self {
             buffer: bytes.into(),
         }
