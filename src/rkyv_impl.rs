@@ -90,3 +90,70 @@ impl<'a> From<&'a ArchivedValue> for ValueRef<'a> {
         ValueRef::from_slice(value.data.as_slice(), value.entry)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rkyv::rancor::Error;
+
+    use super::*;
+
+    fn roundtrip_ref(valuer: ValueRef<'_>) {
+        let serialized = rkyv::to_bytes::<Error>(&valuer).unwrap();
+        let bytes = serialized.to_vec();
+
+        {
+            // `Value` and `ValueRef` should serialize to the same bytes.
+            let owned_serialized = rkyv::to_bytes::<Error>(&valuer.to_owned()).unwrap();
+            let owned_bytes = owned_serialized.to_vec();
+            assert_eq!(owned_bytes, bytes);
+        }
+
+        // Test that we can directly access `ArchivedValue` from the bytes, and it can be converted
+        // back to `ValueRef`.
+        let accessed: &ArchivedValue = rkyv::access::<_, Error>(&bytes).unwrap();
+        let accessed_valuer = ValueRef::from(accessed);
+        assert_eq!(accessed_valuer, valuer);
+
+        // Test that we can also deserialize `Value` from the bytes.
+        let deserialized_value: Value = rkyv::from_bytes::<_, Error>(&bytes).unwrap();
+        assert_eq!(deserialized_value, valuer.to_owned());
+
+        // Test that the reference of the deserialized `Value` is the same as the original.
+        let deserialized_valuer = deserialized_value.as_ref();
+        assert_eq!(deserialized_valuer, valuer);
+
+        // Test that the reference of the deserialized `Value` is the same as the one we get from
+        // `ArchivedValue`.
+        assert_eq!(accessed_valuer, deserialized_valuer);
+    }
+
+    fn roundtrip(value: Value) {
+        roundtrip_ref(value.as_ref());
+    }
+
+    #[test]
+    fn test_rkyv() {
+        // Simple
+        roundtrip(Value::null());
+        roundtrip(Value::from(true));
+        roundtrip(Value::from(false));
+        roundtrip(Value::from(1));
+        roundtrip(Value::from(1.0));
+        roundtrip(Value::from("hello"));
+
+        // Composite
+        roundtrip(Value::from_text(br#"{"a": 1, "b": 2}"#).unwrap());
+        roundtrip(Value::from_text(br#"[1, 2, 3]"#).unwrap());
+        roundtrip(Value::from_text(br#"{"a": 1, "b": {"c": [4, 5, 6] }}"#).unwrap());
+
+        // Ref
+        let value = Value::from_text(br#"{"a": 1, "b": {"c": [5, "6", {"d": 7}] }}"#).unwrap();
+        roundtrip_ref(value.as_ref());
+        roundtrip_ref(value.pointer("/b").unwrap());
+        roundtrip_ref(value.pointer("/b/c").unwrap());
+        roundtrip_ref(value.pointer("/b/c/0").unwrap());
+        roundtrip_ref(value.pointer("/b/c/1").unwrap());
+        roundtrip_ref(value.pointer("/b/c/2").unwrap());
+        roundtrip_ref(value.pointer("/b/c/2/d").unwrap());
+    }
+}

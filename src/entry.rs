@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Portable))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Portable, rkyv::bytecheck::CheckBytes))]
+#[cfg_attr(feature = "rkyv", bytecheck(crate = rkyv::bytecheck))]
 #[repr(transparent)]
 pub(crate) struct Entry(pub [u8; 4]);
 
