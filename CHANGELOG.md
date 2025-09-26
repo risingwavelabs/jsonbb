@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-09-26
+
+### Added
+
+- Add `ValueRef::to_raw_parts` and `ValueRef::from_raw_parts`.
+
+### Changed
+
+- `ValueRef::String` now consists of a `StringRef` instead of `&str` for safety.
+
 ## [0.2.0] - 2024-05-27
 
 ### Changed

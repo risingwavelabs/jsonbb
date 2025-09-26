@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// The metadata of a JSON value, consisting of a tag for the type of the value,
+/// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct Entry(pub [u8; 4]);
 
+#[doc(hidden)]
 impl Entry {
     const LEN_MASK: u32 = 0x1FFFFFFF;
 

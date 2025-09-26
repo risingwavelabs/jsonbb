@@ -123,6 +123,7 @@ use self::entry::*;
 pub use self::serde::*;
 pub use self::value::*;
 pub use self::value_ref::*;
+pub use entry::Entry;
 
 // for `json!` macro
 #[doc(hidden)]
