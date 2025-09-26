@@ -219,6 +219,16 @@ impl<'a> ValueRef<'a> {
         }
     }
 
+    /// Returns the entry and data of the value.
+    pub fn to_raw_parts(self) -> (Entry, &'a [u8]) {
+        (self.make_entry(0), self.as_slice())
+    }
+
+    /// Creates a `ValueRef` from an entry and data.
+    pub fn from_raw_parts(entry: Entry, data: &'a [u8]) -> Self {
+        Self::from_slice(data, entry)
+    }
+
     /// Returns the capacity to store this value, in bytes.
     pub fn capacity(self) -> usize {
         self.as_slice().len()

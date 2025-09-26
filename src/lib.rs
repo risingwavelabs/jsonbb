@@ -127,3 +127,7 @@ pub use self::value_ref::*;
 // for `json!` macro
 #[doc(hidden)]
 pub use serde_json;
+
+// For `ValueRef::to_raw_parts` and `ValueRef::from_raw_parts`.
+#[doc(hidden)]
+pub use entry::Entry;
