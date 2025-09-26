@@ -15,8 +15,10 @@
 /// The metadata of a JSON value, consisting of a tag for the type of the value,
 /// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Portable, rkyv::bytecheck::CheckBytes))]
+#[cfg_attr(feature = "rkyv", bytecheck(crate = rkyv::bytecheck))]
 #[repr(transparent)]
-pub struct Entry(pub [u8; 4]);
+pub(crate) struct Entry(pub [u8; 4]);
 
 #[doc(hidden)]
 impl Entry {
