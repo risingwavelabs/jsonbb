@@ -1,22 +1,11 @@
 #![no_main]
 
+use arbitrary_json::ArbitraryValue;
 use jsonbb::Value;
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| {
-    // Restrict size to keep allocations bounded during fuzzing.
-    if data.len() > 1 << 16 {
-        return;
-    }
-
-    let input = match std::str::from_utf8(data) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-
-    if !input.starts_with('{') {
-        return;
-    }
+fuzz_target!(|data: ArbitraryValue| {
+    let input = data.to_string();
 
     let value = match Value::from_text(input.as_bytes()) {
         Ok(v) => v,
