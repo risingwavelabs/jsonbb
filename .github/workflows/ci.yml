@@ -55,7 +55,15 @@ jobs:
           args: --all-features --no-fail-fast
 
   fuzz:
+    name: fuzz (${{ matrix.fuzz_target }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - fuzz_target: parse
+            feature_args: ""
+          - fuzz_target: roundtrip
+            feature_args: "--features jsonbb/float_roundtrip"
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -65,7 +73,5 @@ jobs:
           override: true
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
-      - name: Fuzz parse target
-        run: cargo fuzz run parse -- -max_total_time=60
-      - name: Fuzz roundtrip target with float feature
-        run: cargo fuzz run roundtrip --features jsonbb/float_roundtrip -- -max_total_time=60
+      - name: Run cargo fuzz
+        run: cargo fuzz run ${{ matrix.fuzz_target }} ${{ matrix.feature_args }} -- -max_total_time=60
