@@ -2,13 +2,6 @@
 
 use jsonbb::Value;
 use libfuzzer_sys::fuzz_target;
-use std::hash::{Hash, Hasher};
-
-fn hash_code<T: Hash>(t: T) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    t.hash(&mut hasher);
-    hasher.finish()
-}
 
 fuzz_target!(|data: &[u8]| {
     // Restrict size to keep allocations bounded during fuzzing.
@@ -39,10 +32,9 @@ fuzz_target!(|data: &[u8]| {
     };
 
     let roundtripped = roundtripped.as_ref();
-    // assert_eq!(original, roundtripped);
+
     assert_eq!(
-        hash_code(original),
-        hash_code(roundtripped),
+        original, roundtripped,
         "input: {input}\noriginal: {original}\nroundtripped: {roundtripped}"
     );
 });

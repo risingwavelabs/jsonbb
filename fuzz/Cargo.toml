@@ -19,8 +19,8 @@ members = ["."]
 debug = 1
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
+name = "parse"
+path = "fuzz_targets/parse.rs"
 test = false
 doc = false
 
@@ -29,3 +29,4 @@ name = "roundtrip"
 path = "fuzz_targets/roundtrip.rs"
 test = false
 doc = false
+required-features = ["jsonbb/float_roundtrip"]
