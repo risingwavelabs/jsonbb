@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Buf as _;
-
 /// The metadata of a JSON value, consisting of a tag for the type of the value,
 /// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -141,6 +139,7 @@ pub(crate) enum NumberTag {
     I64 = NUMBER_I64,
     U64 = NUMBER_U64,
     F64 = NUMBER_F64,
+    #[cfg(feature = "arbitrary_precision")]
     Str = NUMBER_STR,
 }
 
@@ -154,7 +153,10 @@ impl From<u8> for NumberTag {
             NUMBER_I64 => Self::I64,
             NUMBER_U64 => Self::U64,
             NUMBER_F64 => Self::F64,
+            #[cfg(feature = "arbitrary_precision")]
             NUMBER_STR => Self::Str,
+            #[cfg(not(feature = "arbitrary_precision"))]
+            NUMBER_STR => panic!("found number with arbitrary precision, enable `arbitrary_precision` feature to load it"),
             t => panic!("invalid number tag: {t}"),
         }
     }
@@ -164,7 +166,12 @@ impl From<u8> for NumberTag {
 pub fn number_size(data: &[u8]) -> usize {
     let tag = NumberTag::from(data[0]);
     match tag {
-        NumberTag::Str => 4 + (&data[1..]).get_u32_ne() as usize,
+        #[cfg(feature = "arbitrary_precision")]
+        NumberTag::Str => {
+            use bytes::Buf as _;
+            4 + (&data[1..]).get_u32_ne() as usize
+        }
+
         _ => (tag as u8 & 0xF) as usize,
     }
 }

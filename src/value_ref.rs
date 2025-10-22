@@ -14,7 +14,6 @@
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::str::FromStr as _;
 
 use super::*;
 use bytes::Buf;
@@ -357,7 +356,11 @@ impl<'a> NumberRef<'a> {
             NumberTag::I64 => Number::from(data.get_i64_ne()),
             NumberTag::U64 => Number::from(data.get_u64_ne()),
             NumberTag::F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
-            NumberTag::Str => Number::from_str(StringRef::from_bytes(data).as_str()).unwrap(),
+            #[cfg(feature = "arbitrary_precision")]
+            NumberTag::Str => {
+                use std::str::FromStr as _;
+                Number::from_str(StringRef::from_bytes(data).as_str()).unwrap()
+            }
         }
     }
 
@@ -396,6 +399,7 @@ impl<'a> NumberRef<'a> {
             NumberTag::I64 => data.get_i64_ne() as f32,
             NumberTag::U64 => data.get_u64_ne() as f32,
             NumberTag::F64 => data.get_f64_ne() as f32,
+            #[cfg(feature = "arbitrary_precision")]
             NumberTag::Str => (StringRef::from_bytes(data).as_str().parse::<f32>().ok())
                 .filter(|float| float.is_finite())?,
         })
