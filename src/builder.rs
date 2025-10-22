@@ -280,7 +280,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 let (k, v) = &mut entries[i];
                 let begin = k.offset();
                 let end = if v.is_number() {
-                    v.offset() + 1 + number_size(data[v.offset()])
+                    v.offset() + 1 + number_size(&data[v.offset()..])
                 } else if v.is_string() {
                     v.offset() + 4 + (&data[v.offset()..]).get_u32_ne() as usize
                 } else if v.is_array() || v.is_object() {

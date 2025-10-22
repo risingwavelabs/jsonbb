@@ -175,7 +175,7 @@ impl<'a> ValueRef<'a> {
             Entry::TRUE_TAG => Self::Bool(true),
             Entry::NUMBER_TAG => {
                 let ptr = entry.offset();
-                let data = &data[ptr..ptr + 1 + number_size(data[ptr])];
+                let data = &data[ptr..ptr + 1 + number_size(&data[ptr..])];
                 Self::Number(NumberRef { data })
             }
             Entry::STRING_TAG => {

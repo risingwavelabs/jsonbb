@@ -156,6 +156,7 @@ impl From<u8> for NumberTag {
 }
 
 /// Returns the size of the number in bytes.
-pub const fn number_size(tag: u8) -> usize {
-    (tag & 0xF) as usize
+pub fn number_size(data: &[u8]) -> usize {
+    let tag = NumberTag::from(data[0]);
+    (tag as u8 & 0xF) as usize
 }
