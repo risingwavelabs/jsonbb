@@ -170,9 +170,27 @@ impl<'de, W: AsMut<Vec<u8>>> Visitor<'de> for BuilderVisitor<'_, W> {
     where
         V: MapAccess<'de>,
     {
-        self.0.begin_object();
-        while visitor.next_key_seed(&mut *self.0)?.is_some() {
+        if let Some(first_key) = visitor.next_key::<&str>()? {
+            #[cfg(feature = "arbitrary_precision")]
+            if first_key == "$serde_json::private::Number" {
+                let v = visitor.next_value::<&str>()?;
+                self.0.add_number_string(v);
+                return Ok(());
+            }
+
+            self.0.begin_object();
+
+            // First key-value pair.
+            self.0.add_string(first_key);
             visitor.next_value_seed(&mut *self.0)?;
+
+            // Subsequent key-value pairs.
+            while visitor.next_key_seed(&mut *self.0)?.is_some() {
+                visitor.next_value_seed(&mut *self.0)?;
+            }
+        } else {
+            self.0.begin_object();
+            // Empty object.
         }
         self.0.end_object();
         Ok(())

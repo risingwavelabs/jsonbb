@@ -11,6 +11,7 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+arbitrary_precision = ["serde_json/arbitrary_precision"]
 float_roundtrip = ["serde_json/float_roundtrip"]
 
 [dependencies]

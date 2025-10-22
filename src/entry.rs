@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Buf as _;
+
 /// The metadata of a JSON value, consisting of a tag for the type of the value,
 /// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -127,6 +129,7 @@ const NUMBER_I32: u8 = 0x4;
 const NUMBER_I64: u8 = 0x8;
 const NUMBER_U64: u8 = 0x18;
 const NUMBER_F64: u8 = 0x28;
+const NUMBER_STR: u8 = 0xFF;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +141,7 @@ pub(crate) enum NumberTag {
     I64 = NUMBER_I64,
     U64 = NUMBER_U64,
     F64 = NUMBER_F64,
+    Str = NUMBER_STR,
 }
 
 impl From<u8> for NumberTag {
@@ -150,13 +154,17 @@ impl From<u8> for NumberTag {
             NUMBER_I64 => Self::I64,
             NUMBER_U64 => Self::U64,
             NUMBER_F64 => Self::F64,
+            NUMBER_STR => Self::Str,
             t => panic!("invalid number tag: {t}"),
         }
     }
 }
 
-/// Returns the size of the number in bytes.
+/// Returns the size of the number in bytes, excluding the tag byte.
 pub fn number_size(data: &[u8]) -> usize {
     let tag = NumberTag::from(data[0]);
-    (tag as u8 & 0xF) as usize
+    match tag {
+        NumberTag::Str => 4 + (&data[1..]).get_u32_ne() as usize,
+        _ => (tag as u8 & 0xF) as usize,
+    }
 }

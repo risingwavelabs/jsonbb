@@ -14,6 +14,7 @@
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::str::FromStr as _;
 
 use super::*;
 use bytes::Buf;
@@ -339,12 +340,12 @@ impl<'a> StringRef<'a> {
 #[derive(Clone, Copy)]
 pub struct NumberRef<'a> {
     // # layout
-    // | tag | number    |
-    // |  1  | 0/1/2/4/8 |
+    // | tag | number              |
+    // |  1  | 0/1/2/4/8/StringRef |
     data: &'a [u8],
 }
 
-impl NumberRef<'_> {
+impl<'a> NumberRef<'a> {
     /// Dereferences the number.
     pub fn to_number(self) -> Number {
         let mut data = self.data;
@@ -356,6 +357,7 @@ impl NumberRef<'_> {
             NumberTag::I64 => Number::from(data.get_i64_ne()),
             NumberTag::U64 => Number::from(data.get_u64_ne()),
             NumberTag::F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
+            NumberTag::Str => Number::from_str(StringRef::from_bytes(data).as_str()).unwrap(),
         }
     }
 
@@ -374,6 +376,15 @@ impl NumberRef<'_> {
         self.to_number().as_f64()
     }
 
+    /// If the number is represented as a string, returns the associated string. Returns `None` otherwise.
+    #[cfg(feature = "arbitrary_precision")]
+    pub(crate) fn as_str(mut self) -> Option<&'a str> {
+        match NumberTag::from(self.data.get_u8()) {
+            NumberTag::Str => Some(StringRef::from_bytes(self.data).as_str()),
+            _ => None,
+        }
+    }
+
     /// Represents the number as f32 if possible. Returns None otherwise.
     pub(crate) fn as_f32(&self) -> Option<f32> {
         let mut data = self.data;
@@ -385,6 +396,8 @@ impl NumberRef<'_> {
             NumberTag::I64 => data.get_i64_ne() as f32,
             NumberTag::U64 => data.get_u64_ne() as f32,
             NumberTag::F64 => data.get_f64_ne() as f32,
+            NumberTag::Str => (StringRef::from_bytes(data).as_str().parse::<f32>().ok())
+                .filter(|float| float.is_finite())?,
         })
     }
 
