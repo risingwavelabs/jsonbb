@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Buf;
+
 /// The metadata of a JSON value, consisting of a tag for the type of the value,
 /// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -119,7 +121,8 @@ impl From<&[u8]> for Entry {
     }
 }
 
-// last 4 bits is the size
+// For `STR`, the number is stored as `StringRef`.
+// For other types, the last 4 bits indicate the size of the number in bytes.
 const NUMBER_ZERO: u8 = 0x0;
 const NUMBER_I8: u8 = 0x1;
 const NUMBER_I16: u8 = 0x2;
@@ -163,15 +166,13 @@ impl From<u8> for NumberTag {
 }
 
 /// Returns the size of the number in bytes, excluding the tag byte.
-pub fn number_size(data: &[u8]) -> usize {
-    let tag = NumberTag::from(data[0]);
+pub fn number_size(mut data: &[u8]) -> usize {
+    let tag = NumberTag::from(data.get_u8());
     match tag {
         #[cfg(feature = "arbitrary_precision")]
         NumberTag::Str => {
-            use bytes::Buf as _;
-            4 + (&data[1..]).get_u32_ne() as usize
+            4 /* str len field */ + data.get_u32_ne() /* str */ as usize
         }
-
         _ => (tag as u8 & 0xF) as usize,
     }
 }
