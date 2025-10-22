@@ -14,6 +14,9 @@ env:
 jobs:
   fmt:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        feature_args: ["", "--all-features"]
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -30,13 +33,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-targets --all-features -- -D warnings
+          args: --all-targets ${{ matrix.feature_args }} -- -D warnings
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         toolchain: [stable, nightly]
+        feature_args: ["", "--all-features"]
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -47,12 +51,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets --all-features
+          args: --all-targets ${{ matrix.feature_args }}
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features --no-fail-fast
+          args: --no-fail-fast ${{ matrix.feature_args }}
 
   fuzz:
     name: fuzz (${{ matrix.fuzz_target }})
@@ -64,6 +68,8 @@ jobs:
             feature_args: ""
           - fuzz_target: roundtrip
             feature_args: "--features jsonbb/float_roundtrip"
+          - fuzz_target: roundtrip_ap
+            feature_args: "--features jsonbb/arbitrary_precision"
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
