@@ -14,6 +14,7 @@
 
 //! Serde support for `ValueRef` and `Builder`.
 
+use std::borrow::Cow;
 use std::fmt::{self, Display};
 
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
@@ -170,18 +171,18 @@ impl<'de, W: AsMut<Vec<u8>>> Visitor<'de> for BuilderVisitor<'_, W> {
     where
         V: MapAccess<'de>,
     {
-        if let Some(first_key) = visitor.next_key::<&str>()? {
+        if let Some(first_key) = visitor.next_key::<Cow<str>>()? {
             #[cfg(feature = "arbitrary_precision")]
             if first_key == "$serde_json::private::Number" {
-                let v = visitor.next_value::<&str>()?;
-                self.0.add_number_string(v);
+                let v = visitor.next_value::<Cow<str>>()?;
+                self.0.add_number_string(&v);
                 return Ok(());
             }
 
             self.0.begin_object();
 
             // First key-value pair.
-            self.0.add_string(first_key);
+            self.0.add_string(&first_key);
             visitor.next_value_seed(&mut *self.0)?;
 
             // Subsequent key-value pairs.
