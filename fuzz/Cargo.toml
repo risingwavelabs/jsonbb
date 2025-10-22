@@ -31,3 +31,10 @@ path = "fuzz_targets/roundtrip.rs"
 test = false
 doc = false
 required-features = ["jsonbb/float_roundtrip"]
+
+[[bin]]
+name = "roundtrip_ap"
+path = "fuzz_targets/roundtrip_ap.rs"
+test = false
+doc = false
+required-features = ["jsonbb/arbitrary_precision"]
