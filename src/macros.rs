@@ -18,6 +18,6 @@
 #[macro_export(local_inner_macros)]
 macro_rules! json {
     ($($json:tt)+) => {
-        jsonbb::Value::from(jsonbb::serde_json::json!($($json)+))
+        $crate::Value::from($crate::serde_json::json!($($json)+))
     };
 }

@@ -222,7 +222,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let buffer = self.buffer.as_mut();
         let (start, npointer) = self.container_starts.pop().unwrap();
         assert!(
-            (self.pointers.len() - npointer) % 2 == 0,
+            (self.pointers.len() - npointer).is_multiple_of(2),
             "expected even number of entries"
         );
         let len = (self.pointers.len() - npointer) / 2;
