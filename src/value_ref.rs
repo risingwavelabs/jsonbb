@@ -348,15 +348,14 @@ impl NumberRef<'_> {
     /// Dereferences the number.
     pub fn to_number(self) -> Number {
         let mut data = self.data;
-        match data.get_u8() {
-            NUMBER_ZERO => Number::from(0),
-            NUMBER_I8 => Number::from(data.get_i8()),
-            NUMBER_I16 => Number::from(data.get_i16_ne()),
-            NUMBER_I32 => Number::from(data.get_i32_ne()),
-            NUMBER_I64 => Number::from(data.get_i64_ne()),
-            NUMBER_U64 => Number::from(data.get_u64_ne()),
-            NUMBER_F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
-            t => panic!("invalid number tag: {t}"),
+        match NumberTag::from(data.get_u8()) {
+            NumberTag::Zero => Number::from(0),
+            NumberTag::I8 => Number::from(data.get_i8()),
+            NumberTag::I16 => Number::from(data.get_i16_ne()),
+            NumberTag::I32 => Number::from(data.get_i32_ne()),
+            NumberTag::I64 => Number::from(data.get_i64_ne()),
+            NumberTag::U64 => Number::from(data.get_u64_ne()),
+            NumberTag::F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
         }
     }
 
@@ -378,15 +377,14 @@ impl NumberRef<'_> {
     /// Represents the number as f32 if possible. Returns None otherwise.
     pub(crate) fn as_f32(&self) -> Option<f32> {
         let mut data = self.data;
-        Some(match data.get_u8() {
-            NUMBER_ZERO => 0 as f32,
-            NUMBER_I8 => data.get_i8() as f32,
-            NUMBER_I16 => data.get_i16_ne() as f32,
-            NUMBER_I32 => data.get_i32_ne() as f32,
-            NUMBER_I64 => data.get_i64_ne() as f32,
-            NUMBER_U64 => data.get_u64_ne() as f32,
-            NUMBER_F64 => data.get_f64_ne() as f32,
-            t => panic!("invalid number tag: {t}"),
+        Some(match NumberTag::from(data.get_u8()) {
+            NumberTag::Zero => 0 as f32,
+            NumberTag::I8 => data.get_i8() as f32,
+            NumberTag::I16 => data.get_i16_ne() as f32,
+            NumberTag::I32 => data.get_i32_ne() as f32,
+            NumberTag::I64 => data.get_i64_ne() as f32,
+            NumberTag::U64 => data.get_u64_ne() as f32,
+            NumberTag::F64 => data.get_f64_ne() as f32,
         })
     }
 

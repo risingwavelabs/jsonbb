@@ -120,13 +120,40 @@ impl From<&[u8]> for Entry {
 }
 
 // last 4 bits is the size
-pub const NUMBER_ZERO: u8 = 0x0;
-pub const NUMBER_I8: u8 = 0x1;
-pub const NUMBER_I16: u8 = 0x2;
-pub const NUMBER_I32: u8 = 0x4;
-pub const NUMBER_I64: u8 = 0x8;
-pub const NUMBER_U64: u8 = 0x18;
-pub const NUMBER_F64: u8 = 0x28;
+const NUMBER_ZERO: u8 = 0x0;
+const NUMBER_I8: u8 = 0x1;
+const NUMBER_I16: u8 = 0x2;
+const NUMBER_I32: u8 = 0x4;
+const NUMBER_I64: u8 = 0x8;
+const NUMBER_U64: u8 = 0x18;
+const NUMBER_F64: u8 = 0x28;
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NumberTag {
+    Zero = NUMBER_ZERO,
+    I8 = NUMBER_I8,
+    I16 = NUMBER_I16,
+    I32 = NUMBER_I32,
+    I64 = NUMBER_I64,
+    U64 = NUMBER_U64,
+    F64 = NUMBER_F64,
+}
+
+impl From<u8> for NumberTag {
+    fn from(v: u8) -> Self {
+        match v {
+            NUMBER_ZERO => Self::Zero,
+            NUMBER_I8 => Self::I8,
+            NUMBER_I16 => Self::I16,
+            NUMBER_I32 => Self::I32,
+            NUMBER_I64 => Self::I64,
+            NUMBER_U64 => Self::U64,
+            NUMBER_F64 => Self::F64,
+            t => panic!("invalid number tag: {t}"),
+        }
+    }
+}
 
 /// Returns the size of the number in bytes.
 pub const fn number_size(tag: u8) -> usize {

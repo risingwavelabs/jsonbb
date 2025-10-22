@@ -98,7 +98,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
-        buffer.push(NUMBER_U64);
+        buffer.push(NumberTag::U64 as u8);
         buffer.put_u64_ne(v);
     }
 
@@ -108,18 +108,18 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
         if v == 0 {
-            buffer.push(NUMBER_ZERO);
+            buffer.push(NumberTag::Zero as u8);
         } else if let Ok(v) = i8::try_from(v) {
-            buffer.push(NUMBER_I8);
+            buffer.push(NumberTag::I8 as u8);
             buffer.put_i8(v);
         } else if let Ok(v) = i16::try_from(v) {
-            buffer.push(NUMBER_I16);
+            buffer.push(NumberTag::I16 as u8);
             buffer.put_i16_ne(v);
         } else if let Ok(v) = i32::try_from(v) {
-            buffer.push(NUMBER_I32);
+            buffer.push(NumberTag::I32 as u8);
             buffer.put_i32_ne(v);
         } else {
-            buffer.push(NUMBER_I64);
+            buffer.push(NumberTag::I64 as u8);
             buffer.put_i64_ne(v);
         }
     }
@@ -133,7 +133,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
-        buffer.push(NUMBER_F64);
+        buffer.push(NumberTag::F64 as u8);
         buffer.put_f64_ne(v);
     }
 
