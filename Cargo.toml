@@ -14,7 +14,9 @@ license = "Apache-2.0"
 float_roundtrip = ["serde_json/float_roundtrip"]
 
 [dependencies]
+bytemuck = "1.24"
 bytes = "1"
+crc32fast = "1.5"
 serde = "1"
 serde_json = "1"
 simd-json = { version = "0.13", optional = true }

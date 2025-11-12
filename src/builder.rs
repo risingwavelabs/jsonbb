@@ -25,8 +25,17 @@ pub struct Builder<W = Vec<u8>> {
     ///
     /// Smallvec is used to avoid heap allocation for single value.
     pointers: SmallVec<[Entry; 1]>,
-    /// A stack of (position, number of pointers) pairs when the array/object starts.
-    container_starts: Vec<(usize, usize)>,
+    /// A stack of [position, number of pointers] pairs when the array/object starts.
+    container_starts: Vec<[usize; 2]>,
+}
+
+/// A checkpoint of the builder state.
+#[derive(Debug, Clone)]
+pub struct CheckPoint {
+    buffer_length: usize,
+    pointer_length: usize,
+    container_starts_length: usize,
+    checksum: u32,
 }
 
 impl<W> Debug for Builder<W> {
@@ -171,13 +180,13 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     pub fn begin_array(&mut self) {
         let buffer = self.buffer.as_mut();
         self.container_starts
-            .push((buffer.len(), self.pointers.len()));
+            .push([buffer.len(), self.pointers.len()]);
     }
 
     /// Ends an array.
     pub fn end_array(&mut self) {
         let buffer = self.buffer.as_mut();
-        let (start, npointer) = self.container_starts.pop().unwrap();
+        let [start, npointer] = self.container_starts.pop().unwrap();
         let len = self.pointers.len() - npointer;
         buffer.reserve(4 * len + 4 + 4);
         for entry in self.pointers.drain(npointer..) {
@@ -206,7 +215,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     pub fn begin_object(&mut self) {
         let buffer = self.buffer.as_mut();
         self.container_starts
-            .push((buffer.len(), self.pointers.len()));
+            .push([buffer.len(), self.pointers.len()]);
     }
 
     /// Ends an object.
@@ -220,7 +229,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// [`begin_object`]: #method.begin_object
     pub fn end_object(&mut self) {
         let buffer = self.buffer.as_mut();
-        let (start, npointer) = self.container_starts.pop().unwrap();
+        let [start, npointer] = self.container_starts.pop().unwrap();
         assert!(
             (self.pointers.len() - npointer).is_multiple_of(2),
             "expected even number of entries"
@@ -363,7 +372,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Get the current offset from the array/object start.
     fn offset(&mut self) -> usize {
-        self.buffer.as_mut().len() - self.container_starts.last().map_or(0, |&(o, _)| o)
+        self.buffer.as_mut().len() - self.container_starts.last().map_or(0, |&[o, _]| o)
     }
 
     /// Pops the last value.
@@ -374,11 +383,70 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             return;
         }
         let buffer = self.buffer.as_mut();
-        let new_len = entry.offset() + self.container_starts.last().map_or(0, |&(o, _)| o);
+        let new_len = entry.offset() + self.container_starts.last().map_or(0, |&[o, _]| o);
         buffer.truncate(new_len);
         if entry.is_array() || entry.is_object() {
             let len = (&buffer[new_len - 4..]).get_u32_ne() as usize;
             buffer.truncate(new_len - len);
+        }
+    }
+
+    /// Roll back the builder state to the given checkpoint.
+    ///
+    /// Only data added after the checkpoint will be removed. If the builder
+    /// has already popped more data than recorded in the checkpoint, or if
+    /// the checkpoint is invalid (checksum mismatch), the rollback fails.
+    ///
+    /// Returns `true` if the rollback succeeded, or `false` if the checkpoint
+    /// is invalid or the builder state is incompatible with the checkpoint.
+    pub fn rollback_to(&mut self, checkpoint: &CheckPoint) -> bool {
+        let buffer = self.buffer.as_mut();
+
+        if checkpoint.buffer_length > buffer.len()
+            || checkpoint.pointer_length > self.pointers.len()
+            || checkpoint.container_starts_length > self.container_starts.len()
+        {
+            return false;
+        }
+        let checksum = {
+            let mut hasher = crc32fast::Hasher::new();
+            hasher.update(&buffer[..checkpoint.buffer_length]);
+            hasher.update(bytemuck::cast_slice(
+                &self.pointers[..checkpoint.pointer_length],
+            ));
+            hasher.update(bytemuck::cast_slice(
+                &self.container_starts[..checkpoint.container_starts_length],
+            ));
+            hasher.finalize()
+        };
+        if checksum != checkpoint.checksum {
+            return false;
+        }
+
+        buffer.truncate(checkpoint.buffer_length);
+        self.pointers.truncate(checkpoint.pointer_length);
+        self.container_starts
+            .truncate(checkpoint.container_starts_length);
+        true
+    }
+}
+
+impl<W: AsRef<[u8]>> Builder<W> {
+    /// Creates a checkpoint of the current state.
+    ///
+    /// The checkpoint records the current buffer length, stack lengths, and a CRC32
+    /// checksum of those portions so a later rollback can validate that no data
+    /// has been modified since the checkpoint was created.
+    pub fn checkpoint(&self) -> CheckPoint {
+        let mut hasher = crc32fast::Hasher::new();
+        hasher.update(self.buffer.as_ref());
+        hasher.update(bytemuck::cast_slice(&self.pointers));
+        hasher.update(bytemuck::cast_slice(&self.container_starts));
+        CheckPoint {
+            buffer_length: self.buffer.as_ref().len(),
+            pointer_length: self.pointers.len(),
+            container_starts_length: self.container_starts.len(),
+            checksum: hasher.finalize(),
         }
     }
 }
@@ -437,5 +505,34 @@ mod tests {
         builder.end_array();
         let value = builder.finish();
         assert_eq!(value.to_string(), "[1,4]");
+    }
+
+    #[test]
+    fn rollback() {
+        let mut builder = Builder::<Vec<u8>>::new();
+        builder.begin_array();
+        builder.add_u64(1);
+        let checkpoint = builder.checkpoint();
+        builder.add_string("2");
+        builder.add_null();
+        builder.begin_array();
+        builder.add_null();
+        builder.end_array();
+        assert!(builder.rollback_to(&checkpoint));
+        builder.add_u64(4);
+        builder.end_array();
+        let value = builder.finish();
+        assert_eq!(value.to_string(), "[1,4]");
+    }
+
+    #[test]
+    fn rollback_invalid() {
+        let mut builder = Builder::<Vec<u8>>::new();
+        builder.begin_array();
+        builder.add_u64(1);
+        let checkpoint = builder.checkpoint();
+        builder.pop();
+        builder.add_u64(2);
+        assert!(!builder.rollback_to(&checkpoint));
     }
 }
