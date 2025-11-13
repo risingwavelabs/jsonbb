@@ -40,7 +40,7 @@ pub struct Builder<W = Vec<u8>> {
 /// container-starts stack. Checkpoints allow rolling back the builder to a
 /// previously recorded state (see `rollback_to`).
 #[derive(Debug, Clone)]
-pub struct CheckPoint {
+pub struct Checkpoint {
     buffer_length: usize,
     pointer_length: usize,
     container_starts_length: usize,
@@ -410,13 +410,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// the checkpoint does not originate from this builder, the rollback may
     /// panic or leave the builder in an inconsistent state.
     ///
-    /// # Safety
-    ///
-    /// - The checkpoint must have been produced by this builder instance.
-    /// - The builder must not have popped more entries than captured by the
-    ///   checkpoint before calling this method.
-    ///
-    /// The following sequence is invalid and can lead to undefined behavior:
+    /// The following sequence is invalid and may panic for future manipulations.
     ///
     /// ```no_run
     /// let mut builder = jsonbb::Builder::<Vec<u8>>::new();
@@ -425,10 +419,10 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
     /// let checkpoint = builder.checkpoint();
     /// builder.pop();
     /// builder.add_u64(2);
-    /// unsafe { builder.rollback_to(&checkpoint) };
+    /// builder.rollback_to(&checkpoint);
     /// ```
     ///
-    pub unsafe fn rollback_to(&mut self, checkpoint: &CheckPoint) {
+    pub fn rollback_to(&mut self, checkpoint: &Checkpoint) {
         let buffer = self.buffer.as_mut();
 
         if checkpoint.buffer_length > buffer.len()
@@ -447,8 +441,8 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
 impl<W: AsRef<[u8]>> Builder<W> {
     /// Creates a checkpoint of the current state.
-    pub fn checkpoint(&self) -> CheckPoint {
-        CheckPoint {
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
             buffer_length: self.buffer.as_ref().len(),
             pointer_length: self.pointers.len(),
             container_starts_length: self.container_starts.len(),
@@ -523,7 +517,7 @@ mod tests {
         builder.begin_array();
         builder.add_null();
         builder.end_array();
-        unsafe { builder.rollback_to(&checkpoint) };
+        builder.rollback_to(&checkpoint);
         builder.add_u64(4);
         builder.end_array();
         let value = builder.finish();
@@ -538,6 +532,6 @@ mod tests {
         builder.add_u64(1);
         let checkpoint = builder.checkpoint();
         builder.pop();
-        unsafe { builder.rollback_to(&checkpoint) };
+        builder.rollback_to(&checkpoint);
     }
 }
