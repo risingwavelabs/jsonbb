@@ -18,6 +18,11 @@ use smallvec::SmallVec;
 use std::fmt::{self, Debug, Display};
 
 /// A builder for JSON values.
+///
+/// The builder accumulates JSON tokens and any associated payload into an
+/// internal byte buffer. Use the `add_*` methods to push values (or
+/// `begin_*`/`end_*` to create containers). When finished, call `finish` to
+/// obtain the serialized value.
 pub struct Builder<W = Vec<u8>> {
     /// The buffer to write to.
     buffer: W,
@@ -27,6 +32,18 @@ pub struct Builder<W = Vec<u8>> {
     pointers: SmallVec<[Entry; 1]>,
     /// A stack of (position, number of pointers) pairs when the array/object starts.
     container_starts: Vec<(usize, usize)>,
+}
+
+/// A checkpoint of the builder state.
+///
+/// Captures the lengths of the internal buffer, the pointer stack, and the
+/// container-starts stack. Checkpoints allow rolling back the builder to a
+/// previously recorded state (see `rollback_to`).
+#[derive(Debug, Clone)]
+pub struct Checkpoint {
+    buffer_length: usize,
+    pointer_length: usize,
+    container_starts_length: usize,
 }
 
 impl<W> Debug for Builder<W> {
@@ -381,6 +398,56 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             buffer.truncate(new_len - len);
         }
     }
+
+    /// Roll back the builder state to the given checkpoint.
+    ///
+    /// This restores the internal buffer and stacks to the sizes recorded in
+    /// `checkpoint`, effectively removing any data added after the checkpoint
+    /// was created.
+    ///
+    /// Only data added after the checkpoint will be removed. If the builder
+    /// has already popped more items than recorded in the checkpoint, or if
+    /// the checkpoint does not originate from this builder, the rollback may
+    /// panic or leave the builder in an inconsistent state.
+    ///
+    /// The following sequence is invalid and may panic for future manipulations.
+    ///
+    /// ```no_run
+    /// let mut builder = jsonbb::Builder::<Vec<u8>>::new();
+    /// builder.begin_array();
+    /// builder.add_u64(1);
+    /// let checkpoint = builder.checkpoint();
+    /// builder.pop();
+    /// builder.add_u64(2);
+    /// builder.rollback_to(&checkpoint);
+    /// ```
+    ///
+    pub fn rollback_to(&mut self, checkpoint: &Checkpoint) {
+        let buffer = self.buffer.as_mut();
+
+        if checkpoint.buffer_length > buffer.len()
+            || checkpoint.pointer_length > self.pointers.len()
+            || checkpoint.container_starts_length > self.container_starts.len()
+        {
+            panic!("invalid checkpoint");
+        }
+
+        buffer.truncate(checkpoint.buffer_length);
+        self.pointers.truncate(checkpoint.pointer_length);
+        self.container_starts
+            .truncate(checkpoint.container_starts_length);
+    }
+}
+
+impl<W: AsRef<[u8]>> Builder<W> {
+    /// Creates a checkpoint of the current state.
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            buffer_length: self.buffer.as_ref().len(),
+            pointer_length: self.pointers.len(),
+            container_starts_length: self.container_starts.len(),
+        }
+    }
 }
 
 impl Builder<Vec<u8>> {
@@ -437,5 +504,34 @@ mod tests {
         builder.end_array();
         let value = builder.finish();
         assert_eq!(value.to_string(), "[1,4]");
+    }
+
+    #[test]
+    fn rollback() {
+        let mut builder = Builder::<Vec<u8>>::new();
+        builder.begin_array();
+        builder.add_u64(1);
+        let checkpoint = builder.checkpoint();
+        builder.add_string("2");
+        builder.add_null();
+        builder.begin_array();
+        builder.add_null();
+        builder.end_array();
+        builder.rollback_to(&checkpoint);
+        builder.add_u64(4);
+        builder.end_array();
+        let value = builder.finish();
+        assert_eq!(value.to_string(), "[1,4]");
+    }
+
+    #[test]
+    #[should_panic]
+    fn rollback_invalid() {
+        let mut builder = Builder::<Vec<u8>>::new();
+        builder.begin_array();
+        builder.add_u64(1);
+        let checkpoint = builder.checkpoint();
+        builder.pop();
+        builder.rollback_to(&checkpoint);
     }
 }
