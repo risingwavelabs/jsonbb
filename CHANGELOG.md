@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-11-14
+
+### Added
+
+- Add `Checkpoint` struct and `Builder::rollback_to` method to restore a previous builder state, enabling safe rollback during incremental builds.
+
 ## [0.2.2] - 2025-10-22
+
+### Added
 
 - Add `float_roundtrip` feature similar to that in `serde_json`. This makes f64 -> JSON -> f64 produce output identical to the input.
 
