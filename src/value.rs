@@ -552,6 +552,13 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
 
     /// Adds a serde `Number`.
     fn add_serde_number(&mut self, n: &serde_json::Number) {
+        #[cfg(feature = "arbitrary_precision")]
+        {
+            self.add_number_string(n.as_str());
+            return;
+        }
+
+        #[allow(unreachable_code)]
         if let Some(i) = n.as_u64() {
             self.add_u64(i)
         } else if let Some(i) = n.as_i64() {

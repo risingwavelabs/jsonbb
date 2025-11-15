@@ -175,7 +175,7 @@ impl<'a> ValueRef<'a> {
             Entry::TRUE_TAG => Self::Bool(true),
             Entry::NUMBER_TAG => {
                 let ptr = entry.offset();
-                let data = &data[ptr..ptr + 1 + number_size(data[ptr])];
+                let data = &data[ptr..ptr + 1 + number_size(&data[ptr..])];
                 Self::Number(NumberRef { data })
             }
             Entry::STRING_TAG => {
@@ -339,24 +339,28 @@ impl<'a> StringRef<'a> {
 #[derive(Clone, Copy)]
 pub struct NumberRef<'a> {
     // # layout
-    // | tag | number    |
-    // |  1  | 0/1/2/4/8 |
+    // | tag | number              |
+    // |  1  | 0/1/2/4/8/StringRef |
     data: &'a [u8],
 }
 
-impl NumberRef<'_> {
+impl<'a> NumberRef<'a> {
     /// Dereferences the number.
     pub fn to_number(self) -> Number {
         let mut data = self.data;
-        match data.get_u8() {
-            NUMBER_ZERO => Number::from(0),
-            NUMBER_I8 => Number::from(data.get_i8()),
-            NUMBER_I16 => Number::from(data.get_i16_ne()),
-            NUMBER_I32 => Number::from(data.get_i32_ne()),
-            NUMBER_I64 => Number::from(data.get_i64_ne()),
-            NUMBER_U64 => Number::from(data.get_u64_ne()),
-            NUMBER_F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
-            t => panic!("invalid number tag: {t}"),
+        match NumberTag::from(data.get_u8()) {
+            NumberTag::Zero => Number::from(0),
+            NumberTag::I8 => Number::from(data.get_i8()),
+            NumberTag::I16 => Number::from(data.get_i16_ne()),
+            NumberTag::I32 => Number::from(data.get_i32_ne()),
+            NumberTag::I64 => Number::from(data.get_i64_ne()),
+            NumberTag::U64 => Number::from(data.get_u64_ne()),
+            NumberTag::F64 => Number::from_f64(data.get_f64_ne()).unwrap(),
+            #[cfg(feature = "arbitrary_precision")]
+            NumberTag::Str => {
+                use std::str::FromStr as _;
+                Number::from_str(StringRef::from_bytes(data).as_str()).unwrap()
+            }
         }
     }
 
@@ -375,18 +379,29 @@ impl NumberRef<'_> {
         self.to_number().as_f64()
     }
 
+    /// If the number is represented as a string, returns the associated string. Returns `None` otherwise.
+    #[cfg(feature = "arbitrary_precision")]
+    pub(crate) fn as_str(mut self) -> Option<&'a str> {
+        match NumberTag::from(self.data.get_u8()) {
+            NumberTag::Str => Some(StringRef::from_bytes(self.data).as_str()),
+            _ => None,
+        }
+    }
+
     /// Represents the number as f32 if possible. Returns None otherwise.
     pub(crate) fn as_f32(&self) -> Option<f32> {
         let mut data = self.data;
-        Some(match data.get_u8() {
-            NUMBER_ZERO => 0 as f32,
-            NUMBER_I8 => data.get_i8() as f32,
-            NUMBER_I16 => data.get_i16_ne() as f32,
-            NUMBER_I32 => data.get_i32_ne() as f32,
-            NUMBER_I64 => data.get_i64_ne() as f32,
-            NUMBER_U64 => data.get_u64_ne() as f32,
-            NUMBER_F64 => data.get_f64_ne() as f32,
-            t => panic!("invalid number tag: {t}"),
+        Some(match NumberTag::from(data.get_u8()) {
+            NumberTag::Zero => 0 as f32,
+            NumberTag::I8 => data.get_i8() as f32,
+            NumberTag::I16 => data.get_i16_ne() as f32,
+            NumberTag::I32 => data.get_i32_ne() as f32,
+            NumberTag::I64 => data.get_i64_ne() as f32,
+            NumberTag::U64 => data.get_u64_ne() as f32,
+            NumberTag::F64 => data.get_f64_ne() as f32,
+            #[cfg(feature = "arbitrary_precision")]
+            NumberTag::Str => (StringRef::from_bytes(data).as_str().parse::<f32>().ok())
+                .filter(|float| float.is_finite())?,
         })
     }
 

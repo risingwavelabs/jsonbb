@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bytes::Buf;
+
 /// The metadata of a JSON value, consisting of a tag for the type of the value,
 /// and an offset value to locate the value within the bytes data (if needed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -119,16 +121,58 @@ impl From<&[u8]> for Entry {
     }
 }
 
-// last 4 bits is the size
-pub const NUMBER_ZERO: u8 = 0x0;
-pub const NUMBER_I8: u8 = 0x1;
-pub const NUMBER_I16: u8 = 0x2;
-pub const NUMBER_I32: u8 = 0x4;
-pub const NUMBER_I64: u8 = 0x8;
-pub const NUMBER_U64: u8 = 0x18;
-pub const NUMBER_F64: u8 = 0x28;
+// For `STR`, the number is stored as `StringRef`.
+// For other types, the last 4 bits indicate the size of the number in bytes.
+const NUMBER_ZERO: u8 = 0x0;
+const NUMBER_I8: u8 = 0x1;
+const NUMBER_I16: u8 = 0x2;
+const NUMBER_I32: u8 = 0x4;
+const NUMBER_I64: u8 = 0x8;
+const NUMBER_U64: u8 = 0x18;
+const NUMBER_F64: u8 = 0x28;
+const NUMBER_STR: u8 = 0xFF;
 
-/// Returns the size of the number in bytes.
-pub const fn number_size(tag: u8) -> usize {
-    (tag & 0xF) as usize
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NumberTag {
+    Zero = NUMBER_ZERO,
+    I8 = NUMBER_I8,
+    I16 = NUMBER_I16,
+    I32 = NUMBER_I32,
+    I64 = NUMBER_I64,
+    U64 = NUMBER_U64,
+    F64 = NUMBER_F64,
+    #[cfg(feature = "arbitrary_precision")]
+    Str = NUMBER_STR,
+}
+
+impl From<u8> for NumberTag {
+    fn from(v: u8) -> Self {
+        match v {
+            NUMBER_ZERO => Self::Zero,
+            NUMBER_I8 => Self::I8,
+            NUMBER_I16 => Self::I16,
+            NUMBER_I32 => Self::I32,
+            NUMBER_I64 => Self::I64,
+            NUMBER_U64 => Self::U64,
+            NUMBER_F64 => Self::F64,
+            #[cfg(feature = "arbitrary_precision")]
+            NUMBER_STR => Self::Str,
+            #[cfg(not(feature = "arbitrary_precision"))]
+            NUMBER_STR => panic!("found number with arbitrary precision, enable `arbitrary_precision` feature to load it"),
+            t => panic!("invalid number tag: {t}"),
+        }
+    }
+}
+
+/// Returns the size of the number in bytes, excluding the tag byte.
+pub fn number_size(mut data: &[u8]) -> usize {
+    let tag = NumberTag::from(data.get_u8());
+    match tag {
+        #[cfg(feature = "arbitrary_precision")]
+        NumberTag::Str => {
+            4 /* str len field */ + data.get_u32_ne() /* str */ as usize
+        }
+        _ => (tag as u8 & 0xF) as usize,
+    }
 }
