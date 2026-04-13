@@ -308,12 +308,18 @@ impl From<ValueRef<'_>> for serde_json::Value {
 }
 
 /// A reference to a JSON string.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringRef<'a> {
     // # layout
     // | len (u32) | bytes    |
     // |    4      | 0..len  |
     data: &'a [u8],
+}
+
+impl Hash for StringRef<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
 }
 
 impl<'a> StringRef<'a> {
