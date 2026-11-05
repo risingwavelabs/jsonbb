@@ -520,8 +520,10 @@ impl<'a> ArrayRef<'a> {
         let len = self.len();
         let offset = self.data.len() - 8 - 4 * len;
         self.data[offset..offset + 4 * len]
-            .chunks_exact(4)
-            .map(|slice| ValueRef::from_slice(self.data, Entry::from(slice)))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|slice| ValueRef::from_slice(self.data, Entry(*slice)))
     }
 
     /// Returns the entire array as a slice.
