@@ -115,7 +115,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
-        buffer.push(NUMBER_U64);
+        buffer.push(NumberTag::U64 as u8);
         buffer.put_u64_ne(v);
     }
 
@@ -125,18 +125,18 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
         if v == 0 {
-            buffer.push(NUMBER_ZERO);
+            buffer.push(NumberTag::Zero as u8);
         } else if let Ok(v) = i8::try_from(v) {
-            buffer.push(NUMBER_I8);
+            buffer.push(NumberTag::I8 as u8);
             buffer.put_i8(v);
         } else if let Ok(v) = i16::try_from(v) {
-            buffer.push(NUMBER_I16);
+            buffer.push(NumberTag::I16 as u8);
             buffer.put_i16_ne(v);
         } else if let Ok(v) = i32::try_from(v) {
-            buffer.push(NUMBER_I32);
+            buffer.push(NumberTag::I32 as u8);
             buffer.put_i32_ne(v);
         } else {
-            buffer.push(NUMBER_I64);
+            buffer.push(NumberTag::I64 as u8);
             buffer.put_i64_ne(v);
         }
     }
@@ -150,8 +150,19 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
         let offset = self.offset();
         self.pointers.push(Entry::number(offset));
         let buffer = self.buffer.as_mut();
-        buffer.push(NUMBER_F64);
+        buffer.push(NumberTag::F64 as u8);
         buffer.put_f64_ne(v);
+    }
+
+    /// Adds a number in string representation to the builder.
+    #[cfg(feature = "arbitrary_precision")]
+    pub(crate) fn add_number_string(&mut self, v: &str) {
+        let offset = self.offset();
+        self.pointers.push(Entry::number(offset));
+        let buffer = self.buffer.as_mut();
+        buffer.push(NumberTag::Str as u8);
+        buffer.put_u32_ne(v.len().try_into().expect("number string too long"));
+        buffer.put_slice(v.as_bytes());
     }
 
     /// Adds a string value to the builder.
@@ -297,7 +308,7 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
                 let (k, v) = &mut entries[i];
                 let begin = k.offset();
                 let end = if v.is_number() {
-                    v.offset() + 1 + number_size(data[v.offset()])
+                    v.offset() + 1 + number_size(&data[v.offset()..])
                 } else if v.is_string() {
                     v.offset() + 4 + (&data[v.offset()..]).get_u32_ne() as usize
                 } else if v.is_array() || v.is_object() {
@@ -342,6 +353,11 @@ impl<W: AsMut<Vec<u8>>> Builder<W> {
             ValueRef::Null => self.add_null(),
             ValueRef::Bool(b) => self.add_bool(b),
             ValueRef::Number(n) => {
+                #[cfg(feature = "arbitrary_precision")]
+                if let Some(s) = n.as_str() {
+                    self.add_number_string(s);
+                    return;
+                }
                 if let Some(i) = n.as_u64() {
                     self.add_u64(i)
                 } else if let Some(i) = n.as_i64() {
